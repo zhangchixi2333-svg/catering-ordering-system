@@ -13,6 +13,9 @@ public class MessageSendRequest {
     @NotBlank(message = "模板编码不能为空")
     private String templateCode;
 
+    @Schema(description = "消息类型：1-短信，2-邮件，3-微信模板消息，4-APP推送", example = "1")
+    private Integer messageType;
+
     @Schema(description = "接收者类型：1-用户，2-店员，3-后厨", example = "1", required = true)
     @NotNull(message = "接收者类型不能为空")
     private Integer recipientType;

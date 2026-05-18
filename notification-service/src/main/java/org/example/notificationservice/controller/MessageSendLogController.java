@@ -9,6 +9,7 @@ import org.example.notificationservice.common.Result;
 import org.example.notificationservice.dto.MessageSendRequest;
 import org.example.notificationservice.entity.MessageSendLog;
 import org.example.notificationservice.service.MessageSendLogService;
+import org.example.notificationservice.util.MessageIdGenerator;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -84,7 +85,12 @@ public class MessageSendLogController {
     public Result<Boolean> sendMessage(@RequestBody @Valid MessageSendRequest request) {
         MessageSendLog message = new MessageSendLog();
         BeanUtils.copyProperties(request, message);
+        // 生成消息ID
+        message.setMessageId(MessageIdGenerator.generate());
         // 设置默认值
+        if (message.getMessageType() == null) {
+            message.setMessageType(1); // 默认短信
+        }
         if (message.getSendStatus() == null) {
             message.setSendStatus(0); // 默认待发送
         }
