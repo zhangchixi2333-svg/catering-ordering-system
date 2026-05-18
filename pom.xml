@@ -14,12 +14,15 @@
 
     <!-- 子模块 -->
     <modules>
+        <module>eureka-server</module>
         <module>shop-service</module>
         <module>menu-service</module>
         <module>order-service</module>
         <module>payment-service</module>
         <module>queue-service</module>
         <module>notification-service</module>
+        <module>user-service</module>
+        <module>gateway-service</module>
     </modules>
 
     <properties>
