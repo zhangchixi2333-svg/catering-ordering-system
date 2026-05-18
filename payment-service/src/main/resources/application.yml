@@ -31,10 +31,21 @@ mybatis-plus:
 springdoc:
   api-docs:
     enabled: true
+    path: /v3/api-docs
   swagger-ui:
     enabled: true
+    path: /swagger-ui.html
 
 knife4j:
   enable: true
   setting:
     language: zh_cn
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    org.example.paymentservice: DEBUG
+    org.springframework.web.servlet.resource.ResourceHttpRequestHandler: WARN
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
