@@ -5,6 +5,11 @@ spring:
   application:
     name: queue-service
   
+  # Eureka配置
+  cloud:
+    compatibility-verifier:
+      enabled: false
+  
   # 数据源配置
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
@@ -19,6 +24,19 @@ spring:
       host: localhost
       port: 6379
       database: 3
+
+# Eureka配置
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    # 注册到Eureka
+    register-with-eureka: true
+    # 从Eureka获取服务
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
 
 # MyBatis Plus配置
 mybatis-plus:
@@ -46,6 +64,12 @@ logging:
   level:
     root: INFO
     org.example.queueservice: DEBUG
+    # Feign 客户端日志级别
+    org.example.queueservice.feign.ShopFeignClient: DEBUG
+    # OpenFeign 核心日志
+    feign: DEBUG
+    # Eureka 日志
+    com.netflix.discovery: INFO
     org.springframework.web.servlet.resource.ResourceHttpRequestHandler: WARN
   pattern:
     console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'

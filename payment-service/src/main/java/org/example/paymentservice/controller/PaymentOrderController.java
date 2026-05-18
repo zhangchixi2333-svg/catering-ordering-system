@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.paymentservice.common.Result;
 import org.example.paymentservice.dto.PaymentOrderCreateRequest;
 import org.example.paymentservice.entity.PaymentOrder;
+import org.example.paymentservice.feign.OrderFeignClient;
 import org.example.paymentservice.service.PaymentOrderService;
 import org.example.paymentservice.util.PaymentNoGenerator;
 import org.springframework.beans.BeanUtils;
@@ -22,6 +23,7 @@ import java.util.List;
 public class PaymentOrderController {
 
     private final PaymentOrderService paymentOrderService;
+    private final OrderFeignClient orderFeignClient;
 
     @Operation(summary = "获取所有支付订单列表")
     @GetMapping("/list")
@@ -94,27 +96,46 @@ public class PaymentOrderController {
     }
 
     @Operation(
-        summary = "创建支付订单",
-        description = "创建新的支付订单，系统会自动生成支付单号",
-        requestBody = @io.swagger.v3.oas.annotations.parameters.RequestBody(
-            description = "支付订单创建请求",
-            required = true,
-            content = @io.swagger.v3.oas.annotations.media.Content(
-                mediaType = "application/json",
-                schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = PaymentOrderCreateRequest.class),
-                examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
-                    name = "创建支付订单示例",
-                    value = "{\"orderNo\": \"ORD2026051700001\", \"shopId\": 1, \"userId\": 1001, \"paymentAmount\": 98.00, \"paymentMethod\": 1, \"subject\": \"美味餐厅订单支付\", \"body\": \"宫保鸡丁等3件商品\", \"clientIp\": \"192.168.1.100\"}"
-                )
-            )
-        )
+        summary = "创建支付订单（验证订单+使用订单金额）",
+        description = "<font color='red'>【重构优化】</font><br/>" +
+                "创建新的支付订单，系统会自动验证订单信息<br/><br/>" +
+                "<font color='green'>业务规则：</font><br/>" +
+                "1. 调用 order-service 验证订单是否存在 - 不存在则返回错误<br/>" +
+                "2. 验证订单是否已支付 - 已支付则返回错误<br/>" +
+                "3. <b>使用订单的actualAmount作为支付金额</b> - 不使用前端传入的金额<br/>" +
+                "4. <b>使用订单的shopId作为店铺ID</b> - 不使用前端传入的店铺ID<br/>" +
+                "5. 生成支付单号并设置默认值<br/><br/>" +
+                "<font color='orange'>安全优势：</font>防止客户端篡改支付金额，确保支付金额与订单金额一致"
     )
     @PostMapping
     public Result<Boolean> createPayment(@RequestBody @Valid PaymentOrderCreateRequest request) {
+        // 1. 调用 order-service 验证订单是否存在
+        Result<OrderFeignClient.OrderInfoDTO> orderResult = null;
+        try {
+            orderResult = orderFeignClient.getOrderByOrderNo(request.getOrderNo());
+        } catch (Exception e) {
+            return Result.error("订单服务暂时不可用，请稍后重试");
+        }
+        
+        if (orderResult == null || orderResult.getData() == null) {
+            return Result.error("订单不存在，订单编号: " + request.getOrderNo());
+        }
+        
+        OrderFeignClient.OrderInfoDTO orderInfo = orderResult.getData();
+        
+        // 2. 验证订单是否已支付
+        if (orderInfo.getPaymentStatus() != null && orderInfo.getPaymentStatus() == 1) {
+            return Result.error("订单已支付，请勿重复支付");
+        }
+        
+        // 3. 创建支付订单（使用订单的金额和店铺ID）
         PaymentOrder payment = new PaymentOrder();
         BeanUtils.copyProperties(request, payment);
         // 生成支付单号
         payment.setPaymentNo(PaymentNoGenerator.generate());
+        // ✅ 服务端设置金额和店铺ID
+        payment.setPaymentAmount(orderInfo.getActualAmount());  // 从订单获取金额
+        payment.setShopId(orderInfo.getShopId());               // 从订单获取店铺ID
         // 设置默认值
         if (payment.getPaymentStatus() == null) {
             payment.setPaymentStatus(0); // 默认待支付

@@ -9,6 +9,13 @@ import java.math.BigDecimal;
 
 /**
  * 订单创建请求DTO
+ * 
+ * <p>设计原则：</p>
+ * <ul>
+ *   <li>✅ 只包含客户端必须提供的字段</li>
+ *   <li>❌ 不包含服务端计算的字段（金额、数量等）</li>
+ *   <li>❌ 不包含服务端查询的字段（桌台编号、排队号码等）</li>
+ * </ul>
  */
 @Data
 @Schema(description = "订单创建请求")
@@ -18,11 +25,8 @@ public class OrderCreateRequest {
     @NotNull(message = "店铺ID不能为空")
     private Long shopId;
 
-    @Schema(description = "桌台ID", example = "1")
+    @Schema(description = "桌台ID（堂食必填）", example = "5")
     private Long tableId;
-
-    @Schema(description = "桌台编号", example = "A01")
-    private String tableNumber;
 
     @Schema(description = "用户ID", example = "1001")
     private Long userId;
@@ -31,33 +35,9 @@ public class OrderCreateRequest {
     @NotNull(message = "订单类型不能为空")
     private Integer orderType;
 
-    @Schema(description = "订单总金额（元）", example = "98.00", required = true)
-    @NotNull(message = "订单总金额不能为空")
-    @Positive(message = "订单总金额必须大于0")
-    private BigDecimal totalAmount;
+    @Schema(description = "排队ID（可选，关联排队号）", example = "1")
+    private Long queueId;
 
-    @Schema(description = "优惠金额（元）", example = "0.00")
-    private BigDecimal discountAmount;
-
-    @Schema(description = "实付金额（元）", example = "98.00", required = true)
-    @NotNull(message = "实付金额不能为空")
-    @Positive(message = "实付金额必须大于0")
-    private BigDecimal actualAmount;
-
-    @Schema(description = "菜品总数量", example = "3", required = true)
-    @NotNull(message = "菜品总数量不能为空")
-    @Positive(message = "菜品总数量必须大于0")
-    private Integer itemCount;
-
-    @Schema(description = "订单备注", example = "少辣")
+    @Schema(description = "订单备注", example = "不要辣，少盐")
     private String remark;
-
-    @Schema(description = "排队号码", example = "A001")
-    private String queueNumber;
-
-    @Schema(description = "预计等待时间（分钟）", example = "15")
-    private Integer estimatedTime;
-
-    @Schema(description = "优先级：0-普通，1-加急", example = "0")
-    private Integer priority;
 }

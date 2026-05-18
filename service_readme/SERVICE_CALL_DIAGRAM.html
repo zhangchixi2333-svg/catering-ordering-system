@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>餐饮点餐排队系统 - 服务调用关系图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 36px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .service-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .service-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .service-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .service-card h2 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .service-card .port {
+            background: rgba(255,255,255,0.2);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: inline-block;
+            margin-bottom: 15px;
+        }
+
+        .service-card .description {
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            opacity: 0.9;
+        }
+
+        .service-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .service-card li {
+            padding: 8px 0;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .service-card li:last-child {
+            border-bottom: none;
+        }
+
+        .service-card li:before {
+            content: "✓ ";
+            font-weight: bold;
+            margin-right: 5px;
+        }
+
+        .call-flow {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .call-flow h2 {
+            color: #667eea;
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .flow-item {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .flow-item h3 {
+            color: #667eea;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .flow-item p {
+            color: #666;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .flow-item code {
+            background: #f0f0f0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #d63384;
+            font-family: 'Courier New', monospace;
+        }
+
+        .architecture {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+
+        .architecture h2 {
+            font-size: 28px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .arch-diagram {
+            background: rgba(255,255,255,0.1);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            font-family: 'Courier New', monospace;
+            line-height: 2;
+            font-size: 14px;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .service-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍽️ 餐饮点餐排队系统</h1>
+            <p>微服务架构 - 服务调用关系图</p>
+        </div>
+
+        <div class="content">
+            <!-- 架构图 -->
+            <div class="architecture">
+                <h2>系统架构图</h2>
+                <div class="arch-diagram">
+                    <pre>
+┌─────────────────────────────────────────────────────┐
+│                  客户端 (Frontend)                     │
+└──────────────┬──────────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────┐
+│              API Gateway (可选)                        │
+└──┬────────┬────────┬────────┬────────┬──────────────┘
+   │        │        │        │        │
+   ▼        ▼        ▼        ▼        ▼
+┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐
+│Shop  │ │Menu  │ │Order │ │Queue │ │Notif │
+│:8081 │ │:8082 │ │:8083 │ │:8085 │ │:8086 │
+└──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘ └──┬───┘
+   │        │        │        │        │
+   └────────┴────────┼────────┴────────┘
+                     │
+                     ▼
+            ┌────────────────┐
+            │  Payment :8084 │
+            └────────────────┘
+                    </pre>
+                </div>
+            </div>
+
+            <!-- 服务卡片 -->
+            <div class="service-grid">
+                <!-- Shop Service -->
+                <div class="service-card">
+                    <h2>🏪 Shop Service</h2>
+                    <div class="port">端口: 8081</div>
+                    <div class="description">
+                        店铺管理服务，提供店铺信息、桌台管理等基础数据
+                    </div>
+                    <ul>
+                        <li>店铺CRUD操作</li>
+                        <li>桌台管理</li>
+                        <li>营业状态管理</li>
+                        <li>被其他服务调用验证</li>
+                    </ul>
+                    <div style="margin-top: 15px;">
+                        <span class="badge">基础服务</span>
+                        <span class="badge">被动调用</span>
+                    </div>
+                </div>
+
+                <!-- Menu Service -->
+                <div class="service-card">
+                    <h2>🍜 Menu Service</h2>
+                    <div class="port">端口: 8082</div>
+                    <div class="description">
+                        菜品管理服务，管理分类、菜品、库存等
+                    </div>
+                    <ul>
+                        <li>分类管理</li>
+                        <li>菜品CRUD</li>
+                        <li>库存管理</li>
+                        <li>调用Shop验证店铺</li>
+                    </ul>
+                    <div style="margin-top: 15px;">
+                        <span class="badge">FeignClient</span>
+                        <span class="badge">Shop验证</span>
+                    </div>
+                </div>
+
+                <!-- Order Service -->
+                <div class="service-card">
+                    <h2>📋 Order Service</h2>
+                    <div class="port">端口: 8083</div>
+                    <div class="description">
+                        订单管理服务，处理订单创建、状态流转等
+                    </div>
+                    <ul>
+                        <li>订单创建</li>
+                        <li>订单状态管理</li>
+                        <li>调用Shop验证店铺</li>
+                        <li>调用Queue验证排队</li>
+                    </ul>
+                    <div style="margin-top: 15px;">
+                        <span class="badge">FeignClient×2</span>
+                        <span class="badge">核心业务</span>
+                    </div>
+                </div>
+
+                <!-- Queue Service -->
+                <div class="service-card">
+                    <h2>🎫 Queue Service</h2>
+                    <div class="port">端口: 8085</div>
+                    <div class="description">
+                        排队管理服务，处理取号、叫号等
+                    </div>
+                    <ul>
+                        <li>在线取号</li>
+                        <li>叫号管理</li>
+                        <li>WebSocket实时通知</li>
+                        <li>调用Shop验证+营业状态</li>
+                    </ul>
+                    <div style="margin-top: 15px;">
+                        <span class="badge">FeignClient</span>
+                        <span class="badge">营业检查</span>
+                    </div>
+                </div>
+
+                <!-- Payment Service -->
+                <div class="service-card">
+                    <h2>💰 Payment Service</h2>
+                    <div class="port">端口: 8084</div>
+                    <div class="description">
+                        支付管理服务，处理支付订单、支付回调等
+                    </div>
+                    <ul>
+                        <li>支付订单创建</li>
+                        <li>支付回调处理</li>
+                        <li>调用Order验证订单</li>
+                        <li>防止重复支付</li>
+                    </ul>
+                    <div style="margin-top: 15px;">
+                        <span class="badge">FeignClient</span>
+                        <span class="badge">Order验证</span>
+                    </div>
+                </div>
+
+                <!-- Notification Service -->
+                <div class="service-card">
+                    <h2>📢 Notification Service</h2>
+                    <div class="port">端口: 8086</div>
+                    <div class="description">
+                        通知服务，多渠道消息推送
+                    </div>
+                    <ul>
+                        <li>短信通知</li>
+                        <li>邮件通知</li>
+                        <li>WebSocket推送</li>
+                        <li>RabbitMQ异步处理</li>
+                    </ul>
+                    <div style="margin-top: 15px;">
+                        <span class="badge">基础设施</span>
+                        <span class="badge">被动调用</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 调用流程 -->
+            <div class="call-flow">
+                <h2>🔄 典型调用流程</h2>
+                
+                <div class="flow-item">
+                    <h3>场景1: 用户取号就餐</h3>
+                    <p>
+                        <code>Queue Service</code> → 
+                        <code>Shop Service</code> (验证店铺+营业状态) → 
+                        生成排队号码 → 
+                        WebSocket推送通知
+                    </p>
+                </div>
+
+                <div class="flow-item">
+                    <h3>场景2: 用户点餐下单</h3>
+                    <p>
+                        <code>Order Service</code> → 
+                        <code>Shop Service</code> (验证店铺) + 
+                        <code>Queue Service</code> (验证排队) → 
+                        创建订单 → 
+                        <code>Notification Service</code> (发送通知)
+                    </p>
+                </div>
+
+                <div class="flow-item">
+                    <h3>场景3: 用户支付订单</h3>
+                    <p>
+                        <code>Payment Service</code> → 
+                        <code>Order Service</code> (验证订单+防重复支付) → 
+                        创建支付订单 → 
+                        第三方支付 → 
+                        支付回调 → 
+                        <code>Notification Service</code> (发送通知)
+                    </p>
+                </div>
+
+                <div class="flow-item">
+                    <h3>场景4: 商家管理菜品</h3>
+                    <p>
+                        <code>Menu Service</code> → 
+                        <code>Shop Service</code> (验证店铺) → 
+                        创建/更新菜品 → 
+                        更新库存
+                    </p>
+                </div>
+            </div>
+
+            <!-- 技术栈 -->
+            <div class="architecture">
+                <h2>🛠️ 技术栈</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 20px;">
+                    <div>
+                        <h3 style="margin-bottom: 10px;">核心框架</h3>
+                        <ul style="list-style: none; line-height: 2;">
+                            <li>✓ Spring Boot 3.2.5</li>
+                            <li>✓ Spring Cloud</li>
+                            <li>✓ MyBatis Plus</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 style="margin-bottom: 10px;">服务治理</h3>
+                        <ul style="list-style: none; line-height: 2;">
+                            <li>✓ Eureka 服务注册</li>
+                            <li>✓ OpenFeign 服务调用</li>
+                            <li>✓ 熔断器保护</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 style="margin-bottom: 10px;">中间件</h3>
+                        <ul style="list-style: none; line-height: 2;">
+                            <li>✓ MySQL 数据库</li>
+                            <li>✓ Redis 缓存</li>
+                            <li>✓ RabbitMQ 消息队列</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 style="margin-bottom: 10px;">其他</h3>
+                        <ul style="list-style: none; line-height: 2;">
+                            <li>✓ WebSocket 实时通信</li>
+                            <li>✓ Knife4j API文档</li>
+                            <li>✓ Lombok 简化代码</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>© 2026 餐饮点餐排队系统 | 微服务架构文档</p>
+            <p style="margin-top: 10px; font-size: 12px;">
+                最后更新: 2026-05-18 | 版本: v1.0
+            </p>
+        </div>
+    </div>
+</body>
+</html>

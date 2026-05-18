@@ -2,27 +2,33 @@ package org.example.queueservice.util;
 
 /**
  * 排队号码生成工具类
- * 排队号码格式：队列前缀 + 3位数字
- * 示例：A001, A002, B001, V001
+ * 排队号码格式：前缀 + 日期 + 3位序列号
+ * 示例：A20260518001, B20260518002, V20260518001
  * 
  * 队列前缀说明：
  * - A: 普通桌（堂食）
  * - B: 卡座
  * - V: 包厢
+ * - T: 外带
  */
 public class QueueNoGenerator {
     
     /**
-     * 生成排队号码
-     * @param prefix 队列前缀（A-普通桌，B-卡座，V-包厢）
+     * 生成排队号码（包含日期）
+     * @param prefix 队列前缀（A-普通桌，B-卡座，V-包厢，T-外带）
      * @param sequence 序列号
-     * @return 排队号码，格式：前缀 + 3位数字（如：A001）
+     * @return 排队号码，格式：前缀 + 日期(yyyyMMdd) + 3位数字（如：A20260518001）
      */
     public static String generate(String prefix, int sequence) {
         if (prefix == null || prefix.isEmpty()) {
             prefix = "A"; // 默认A队列
         }
-        return String.format("%s%03d", prefix.toUpperCase(), sequence);
+        
+        // 获取当前日期
+        String dateStr = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        
+        // 格式：前缀 + 日期 + 3位序列号
+        return String.format("%s%s%03d", prefix.toUpperCase(), dateStr, sequence);
     }
     
     /**

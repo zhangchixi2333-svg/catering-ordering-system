@@ -8,6 +8,17 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 
+/**
+ * 支付订单创建请求DTO
+ * 
+ * <p>设计原则：</p>
+ * <ul>
+ *   <li>✅ 只包含客户端必须提供的字段</li>
+ *   <li>❌ 不包含服务端获取的字段（金额、店铺ID等）</li>
+ *   <li>✅ 金额从order-service获取订单的actualAmount</li>
+ *   <li>✅ 店铺ID从order-service获取订单的shopId</li>
+ * </ul>
+ */
 @Data
 @Schema(description = "支付订单创建请求")
 public class PaymentOrderCreateRequest {
@@ -19,17 +30,8 @@ public class PaymentOrderCreateRequest {
     @Schema(description = "关联订单ID(可选,后续通过orderNo查询)", example = "1")
     private Long orderId;
 
-    @Schema(description = "店铺ID", example = "1", required = true)
-    @NotNull(message = "店铺ID不能为空")
-    private Long shopId;
-
     @Schema(description = "用户ID", example = "1001")
     private Long userId;
-
-    @Schema(description = "支付金额（元）", example = "98.00", required = true)
-    @NotNull(message = "支付金额不能为空")
-    @Positive(message = "支付金额必须大于0")
-    private BigDecimal paymentAmount;
 
     @Schema(description = "支付方式：1-微信，2-支付宝，3-现金，4-会员卡，5-银行卡", example = "1", required = true)
     @NotNull(message = "支付方式不能为空")

@@ -9,6 +9,7 @@ import org.example.menuservice.common.Result;
 import org.example.menuservice.dto.MenuCategoryCreateRequest;
 import org.example.menuservice.dto.MenuCategoryUpdateRequest;
 import org.example.menuservice.entity.MenuCategory;
+import org.example.menuservice.feign.ShopFeignClient;
 import org.example.menuservice.service.MenuCategoryService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,7 @@ import java.util.List;
 public class MenuCategoryController {
 
     private final MenuCategoryService menuCategoryService;
+    private final ShopFeignClient shopFeignClient;
 
     @Operation(summary = "获取所有分类列表")
     @GetMapping("/list")
@@ -63,9 +65,30 @@ public class MenuCategoryController {
         return Result.success(category);
     }
 
-    @Operation(summary = "创建分类")
+    @Operation(
+        summary = "创建分类（验证店铺）",
+        description = "<font color='red'>【优化】</font><br/>" +
+                "创建新的菜品分类，系统会自动验证店铺信息<br/><br/>" +
+                "<font color='green'>业务规则：</font><br/>" +
+                "1. 调用 shop-service 验证店铺是否存在 - 不存在则返回错误<br/>" +
+                "2. 设置默认值：isVisible=1, parentId=0<br/>" +
+                "3. 一个店铺可以有多个分类"
+    )
     @PostMapping
     public Result<Boolean> createCategory(@RequestBody @Valid MenuCategoryCreateRequest request) {
+        // 1. 验证店铺是否存在
+        Result<ShopFeignClient.ShopInfoDTO> shopResult = null;
+        try {
+            shopResult = shopFeignClient.getShopById(request.getShopId());
+        } catch (Exception e) {
+            return Result.error("店铺服务暂时不可用，请稍后重试");
+        }
+        
+        if (shopResult == null || shopResult.getData() == null) {
+            return Result.error("店铺不存在，ID: " + request.getShopId());
+        }
+        
+        // 2. 创建分类
         MenuCategory category = new MenuCategory();
         BeanUtils.copyProperties(request, category);
         // 设置默认值

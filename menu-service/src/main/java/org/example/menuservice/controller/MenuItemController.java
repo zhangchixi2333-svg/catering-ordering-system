@@ -9,6 +9,7 @@ import org.example.menuservice.common.Result;
 import org.example.menuservice.dto.MenuItemCreateRequest;
 import org.example.menuservice.dto.MenuItemUpdateRequest;
 import org.example.menuservice.entity.MenuItem;
+import org.example.menuservice.feign.ShopFeignClient;
 import org.example.menuservice.service.MenuItemService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,7 @@ import java.util.List;
 public class MenuItemController {
 
     private final MenuItemService menuItemService;
+    private final ShopFeignClient shopFeignClient;
 
     @Operation(summary = "获取所有菜品列表")
     @GetMapping("/list")
@@ -84,9 +86,30 @@ public class MenuItemController {
         return Result.success(item);
     }
 
-    @Operation(summary = "创建菜品")
+    @Operation(
+        summary = "创建菜品（验证店铺）",
+        description = "<font color='red'>【优化】</font><br/>" +
+                "创建新的菜品，系统会自动验证店铺信息<br/><br/>" +
+                "<font color='green'>业务规则：</font><br/>" +
+                "1. 调用 shop-service 验证店铺是否存在 - 不存在则返回错误<br/>" +
+                "2. 设置默认值：isAvailable=1, stock=-1(无限), salesCount=0<br/>" +
+                "3. 菜品必须关联到有效的店铺和分类"
+    )
     @PostMapping
     public Result<Boolean> createItem(@RequestBody @Valid MenuItemCreateRequest request) {
+        // 1. 验证店铺是否存在
+        Result<ShopFeignClient.ShopInfoDTO> shopResult = null;
+        try {
+            shopResult = shopFeignClient.getShopById(request.getShopId());
+        } catch (Exception e) {
+            return Result.error("店铺服务暂时不可用，请稍后重试");
+        }
+        
+        if (shopResult == null || shopResult.getData() == null) {
+            return Result.error("店铺不存在，ID: " + request.getShopId());
+        }
+        
+        // 2. 创建菜品
         MenuItem item = new MenuItem();
         BeanUtils.copyProperties(request, item);
         // 设置默认值
