@@ -1,0 +1,125 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: gateway-service
+  
+  # Redis 配置（用于限流）
+  redis:
+    host: localhost
+    port: 6379
+    password: 
+    database: 0
+
+  # Spring Cloud Gateway 路由配置
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true  # 启用服务发现
+          lower-case-service-id: true  # 服务名小写
+      
+      # 全局跨域配置
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOriginPatterns: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      # 路由规则
+      routes:
+        # 用户服务路由
+        - id: user-service
+          uri: lb://user-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=0
+
+        # 订单服务路由
+        - id: order-service
+          uri: lb://order-service
+          predicates:
+            - Path=/api/orders/**
+          filters:
+            - StripPrefix=0
+
+        # 店铺服务路由
+        - id: shop-service
+          uri: lb://shop-service
+          predicates:
+            - Path=/api/shops/**
+          filters:
+            - StripPrefix=0
+
+        # 排队服务路由
+        - id: queue-service
+          uri: lb://queue-service
+          predicates:
+            - Path=/api/queue/**
+          filters:
+            - StripPrefix=0
+
+        # 支付服务路由
+        - id: payment-service
+          uri: lb://payment-service
+          predicates:
+            - Path=/api/payments/**
+          filters:
+            - StripPrefix=0
+
+        # 通知服务路由
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - StripPrefix=0
+
+# Eureka 配置
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    register-with-eureka: true
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# JWT 配置
+jwt:
+  secret: catering-ordering-system-jwt-secret-key-2026
+  header: Authorization
+  prefix: Bearer 
+
+# 白名单配置（不需要 Token 验证的路径）
+security:
+  whitelist: /api/auth/login,/api/auth/register,/doc.html,/swagger-ui/**,/v3/api-docs/**,/webjars/**,/actuator/**
+
+# Actuator 监控配置
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# 日志配置
+logging:
+  level:
+    org.springframework.cloud.gateway: DEBUG
+    org.example.gatewayservice: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
