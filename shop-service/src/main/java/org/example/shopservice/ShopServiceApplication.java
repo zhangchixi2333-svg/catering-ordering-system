@@ -1,9 +1,11 @@
 package org.example.shopservice;
 
+import org.example.shopservice.feign.ShopFeignClient;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.openfeign.EnableFeignClients;
 
 /**
  * Shop Service 启动类
@@ -11,6 +13,7 @@ import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
 @SpringBootApplication
 @EnableDiscoveryClient
 @MapperScan("org.example.shopservice.mapper")
+@EnableFeignClients(clients = ShopFeignClient.class)
 public class ShopServiceApplication {
 
     public static void main(String[] args) {
