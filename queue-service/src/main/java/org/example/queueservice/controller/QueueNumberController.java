@@ -9,6 +9,7 @@ import org.example.queueservice.common.Result;
 import org.example.queueservice.dto.QueueTakeNumberRequest;
 import org.example.queueservice.entity.QueueNumber;
 import org.example.queueservice.service.QueueNumberService;
+import org.example.queueservice.util.QueueNoGenerator;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -84,6 +85,14 @@ public class QueueNumberController {
     public Result<Boolean> takeNumber(@RequestBody @Valid QueueTakeNumberRequest request) {
         QueueNumber queue = new QueueNumber();
         BeanUtils.copyProperties(request, queue);
+        
+        // 生成排队号码：前缀 + 序列号
+        String prefix = QueueNoGenerator.getPrefixByType(request.getQueueType(), request.getTableType());
+        // 简单实现：使用当前时间戳后4位作为序列号（实际应该从数据库查询当前店铺的最大序列号+1）
+        int sequence = (int) (System.currentTimeMillis() % 10000);
+        String queueNo = QueueNoGenerator.generate(prefix, sequence);
+        queue.setQueueNo(queueNo);
+        
         // 设置默认值
         if (queue.getQueueStatus() == null) {
             queue.setQueueStatus(0); // 默认等待中
