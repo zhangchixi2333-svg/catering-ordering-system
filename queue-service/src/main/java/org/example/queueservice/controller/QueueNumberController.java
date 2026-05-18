@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.example.queueservice.common.Result;
 import org.example.queueservice.dto.QueueTakeNumberRequest;
+import org.example.queueservice.dto.QueueUpdateRequest;
 import org.example.queueservice.entity.QueueNumber;
 import org.example.queueservice.service.QueueNumberService;
 import org.example.queueservice.util.QueueNoGenerator;
@@ -107,11 +108,87 @@ public class QueueNumberController {
         return success ? Result.success(true) : Result.error("取号失败");
     }
 
-    @Operation(summary = "更新排队记录")
+    @Operation(
+        summary = "更新排队记录",
+        description = "更新排队记录信息，如果数据无变化则返回提示"
+    )
     @PutMapping
-    public Result<Boolean> updateQueue(@RequestBody QueueNumber queue) {
-        boolean success = queueNumberService.updateById(queue);
-        return success ? Result.success(true) : Result.error("更新失败");
+    public Result<Boolean> updateQueue(@RequestBody @Valid QueueUpdateRequest request) {
+        // 1. 查询原数据
+        QueueNumber existingQueue = queueNumberService.getById(request.getId());
+        if (existingQueue == null) {
+            return Result.error("排队记录不存在");
+        }
+        
+        // 2. 检查数据是否有变化
+        boolean hasChanges = false;
+        StringBuilder changeDesc = new StringBuilder();
+        
+        if (request.getUserId() != null && !request.getUserId().equals(existingQueue.getUserId())) {
+            hasChanges = true;
+            changeDesc.append("用户ID");
+        }
+        if (request.getPhone() != null && !request.getPhone().equals(existingQueue.getPhone())) {
+            hasChanges = true;
+            if (changeDesc.length() > 0) changeDesc.append(", ");
+            changeDesc.append("联系电话");
+        }
+        if (request.getPartySize() != null && !request.getPartySize().equals(existingQueue.getPartySize())) {
+            hasChanges = true;
+            if (changeDesc.length() > 0) changeDesc.append(", ");
+            changeDesc.append("用餐人数");
+        }
+        if (request.getTableType() != null && !request.getTableType().equals(existingQueue.getTableType())) {
+            hasChanges = true;
+            if (changeDesc.length() > 0) changeDesc.append(", ");
+            changeDesc.append("桌台类型");
+        }
+        if (request.getRemark() != null && !request.getRemark().equals(existingQueue.getRemark())) {
+            hasChanges = true;
+            if (changeDesc.length() > 0) changeDesc.append(", ");
+            changeDesc.append("备注");
+        }
+        if (request.getIsNotified() != null && !request.getIsNotified().equals(existingQueue.getIsNotified())) {
+            hasChanges = true;
+            if (changeDesc.length() > 0) changeDesc.append(", ");
+            changeDesc.append("通知状态");
+        }
+        if (request.getNotifyCount() != null && !request.getNotifyCount().equals(existingQueue.getNotifyCount())) {
+            hasChanges = true;
+            if (changeDesc.length() > 0) changeDesc.append(", ");
+            changeDesc.append("通知次数");
+        }
+        
+        // 3. 如果数据无变化，返回提示信息
+        if (!hasChanges) {
+            return Result.success(true, "数据未发生变化，无需更新");
+        }
+        
+        // 4. 有变化则执行更新
+        if (request.getUserId() != null) {
+            existingQueue.setUserId(request.getUserId());
+        }
+        if (request.getPhone() != null) {
+            existingQueue.setPhone(request.getPhone());
+        }
+        if (request.getPartySize() != null) {
+            existingQueue.setPartySize(request.getPartySize());
+        }
+        if (request.getTableType() != null) {
+            existingQueue.setTableType(request.getTableType());
+        }
+        if (request.getRemark() != null) {
+            existingQueue.setRemark(request.getRemark());
+        }
+        if (request.getIsNotified() != null) {
+            existingQueue.setIsNotified(request.getIsNotified());
+        }
+        if (request.getNotifyCount() != null) {
+            existingQueue.setNotifyCount(request.getNotifyCount());
+        }
+        
+        boolean success = queueNumberService.updateById(existingQueue);
+        return success ? Result.success(true, "更新成功: " + changeDesc.toString()) : Result.error("更新失败");
     }
 
     @Operation(summary = "删除排队记录")
