@@ -166,18 +166,19 @@ INSERT INTO sys_menu (id, parent_id, menu_name, menu_code, menu_type, path, comp
 (4, 0, '店铺管理', 'shop', 1, '/shops', '', '🏪', 4, NULL, 1),
 (5, 0, '系统管理', 'system', 1, '/system', '', '⚙️', 5, NULL, 1);
 
--- 二级菜单（明确指定 ID 6-14）
+-- 二级菜单（明确指定 ID 6-15）
 -- 注意：path 已更新为与前端路由匹配的路径
 INSERT INTO sys_menu (id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort_order, permission, visible) VALUES
 (6, 2, '取号排队', 'queue:take', 2, '/queue', 'QueueView.vue', '🎫', 1, 'queue:take', 1),
 (7, 2, '叫号管理', 'queue:call', 2, '/call-number', 'CallNumberView.vue', '🔔', 2, 'queue:call', 1),
-(8, 3, '我的订单', 'order:my', 2, '/orders', 'OrderView.vue', '📋', 1, 'order:my', 1),
-(9, 3, '全部订单', 'order:all', 2, '/orders', 'OrderAllView.vue', '📊', 2, 'order:all', 1),
-(10, 4, '店铺列表', 'shop:list', 2, '/shops', 'ShopView.vue', '🏪', 1, 'shop:list', 1),
-(11, 4, '店铺统计', 'shop:stats', 2, '/shops', 'ShopStatsView.vue', '📈', 2, 'shop:stats', 1),
-(12, 5, '用户管理', 'system:user', 2, '/system/users', 'UserManageView.vue', '👥', 1, 'system:user', 0),
-(13, 5, '角色管理', 'system:role', 2, '/system/roles', 'RoleManageView.vue', '🔐', 2, 'system:role', 0),
-(14, 5, '系统设置', 'system:settings', 2, '/settings', 'SettingsView.vue', '⚙️', 3, 'system:settings', 1);
+(8, 3, '在线点餐', 'order:menu', 2, '/ordering', 'OrderingView.vue', '🍽️', 1, 'order:menu', 1),
+(9, 3, '我的订单', 'order:my', 2, '/orders', 'OrderView.vue', '📋', 2, 'order:my', 1),
+(10, 3, '全部订单', 'order:all', 2, '/orders', 'OrderAllView.vue', '📊', 3, 'order:all', 1),
+(11, 4, '店铺列表', 'shop:list', 2, '/shops', 'ShopView.vue', '🏪', 1, 'shop:list', 1),
+(12, 4, '店铺统计', 'shop:stats', 2, '/shops', 'ShopStatsView.vue', '📈', 2, 'shop:stats', 1),
+(13, 5, '用户管理', 'system:user', 2, '/system/users', 'UserManageView.vue', '👥', 1, 'system:user', 0),
+(14, 5, '角色管理', 'system:role', 2, '/system/roles', 'RoleManageView.vue', '🔐', 2, 'system:role', 0),
+(15, 5, '系统设置', 'system:settings', 2, '/settings', 'SettingsView.vue', '⚙️', 3, 'system:settings', 1);
 
 -- 3. 初始化用户数据（密码统一为 123456，实际应该使用 BCrypt 加密）
 -- 注意：这里使用明文密码仅用于测试，生产环境必须加密！
@@ -199,43 +200,46 @@ INSERT INTO sys_user_role (user_id, role_id) VALUES (4, 4);
 
 -- 5. 分配角色菜单权限
 
--- 普通用户 (USER) 权限：首页、取号排队、我的订单
+-- 普通用户 (USER) 权限：首页、在线点餐、取号排队、我的订单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (1, 1),  -- 首页
+(1, 3),  -- 订单管理（目录）
+(1, 8),  -- 在线点餐
 (1, 2),  -- 排队管理（目录）
 (1, 6),  -- 取号排队
-(1, 3),  -- 订单管理（目录）
-(1, 8);  -- 我的订单
+(1, 9);  -- 我的订单
 
 -- 店员 (STAFF) 权限：普通用户 + 叫号管理、全部订单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 1),  -- 首页
+(2, 3),  -- 订单管理（目录）
+(2, 8),  -- 在线点餐
+(2, 9),  -- 我的订单
+(2, 10), -- 全部订单
 (2, 2),  -- 排队管理（目录）
 (2, 6),  -- 取号排队
-(2, 7),  -- 叫号管理
-(2, 3),  -- 订单管理（目录）
-(2, 8),  -- 我的订单
-(2, 9);  -- 全部订单
+(2, 7);  -- 叫号管理
 
 -- 店长 (MANAGER) 权限：店员 + 店铺管理
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (3, 1),  -- 首页
+(3, 3),  -- 订单管理（目录）
+(3, 8),  -- 在线点餐
+(3, 9),  -- 我的订单
+(3, 10), -- 全部订单
 (3, 2),  -- 排队管理（目录）
 (3, 6),  -- 取号排队
 (3, 7),  -- 叫号管理
-(3, 3),  -- 订单管理（目录）
-(3, 8),  -- 我的订单
-(3, 9),  -- 全部订单
 (3, 4),  -- 店铺管理（目录）
-(3, 10), -- 店铺列表
-(3, 11); -- 店铺统计
+(3, 11), -- 店铺列表
+(3, 12); -- 店铺统计
 
 -- 超级管理员 (ADMIN) 权限：所有菜单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (4, 1), (4, 2), (4, 6), (4, 7),  -- 首页、排队管理
-(4, 3), (4, 8), (4, 9),          -- 订单管理
-(4, 4), (4, 10), (4, 11),        -- 店铺管理
-(4, 5), (4, 12), (4, 13), (4, 14); -- 系统管理
+(4, 3), (4, 8), (4, 9), (4, 10), -- 订单管理
+(4, 4), (4, 11), (4, 12),        -- 店铺管理
+(4, 5), (4, 13), (4, 14), (4, 15); -- 系统管理
 
 -- =============================================
 -- 常用查询示例

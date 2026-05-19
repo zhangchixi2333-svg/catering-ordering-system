@@ -100,20 +100,28 @@ export const useUserStore = defineStore('user', () => {
     }
     
     // 否则使用默认的基于角色的菜单
+    // 优先使用 roles 数组中的第一个角色，其次使用 role 字段
+    const userRole = Array.isArray(user.value?.roles) 
+      ? user.value.roles[0]?.roleCode 
+      : user.value?.role
+    
     const menus = {
       [ROLES.USER]: [
         { name: '首页', path: '/dashboard', icon: '🏠' },
+        { name: '在线点餐', path: '/ordering', icon: '🍽️' },
         { name: '取号排队', path: '/queue', icon: '🎫' },
         { name: '我的订单', path: '/orders', icon: '📦' }
       ],
       [ROLES.STAFF]: [
         { name: '首页', path: '/dashboard', icon: '🏠' },
+        { name: '在线点餐', path: '/ordering', icon: '🍽️' },
         { name: '取号排队', path: '/queue', icon: '🎫' },
         { name: '叫号管理', path: '/call-number', icon: '🔔' },
         { name: '订单管理', path: '/orders', icon: '📦' }
       ],
       [ROLES.MANAGER]: [
         { name: '首页', path: '/dashboard', icon: '🏠' },
+        { name: '在线点餐', path: '/ordering', icon: '🍽️' },
         { name: '取号排队', path: '/queue', icon: '🎫' },
         { name: '叫号管理', path: '/call-number', icon: '🔔' },
         { name: '订单管理', path: '/orders', icon: '📦' },
@@ -121,6 +129,7 @@ export const useUserStore = defineStore('user', () => {
       ],
       [ROLES.ADMIN]: [
         { name: '首页', path: '/dashboard', icon: '🏠' },
+        { name: '在线点餐', path: '/ordering', icon: '🍽️' },
         { name: '取号排队', path: '/queue', icon: '🎫' },
         { name: '叫号管理', path: '/call-number', icon: '🔔' },
         { name: '订单管理', path: '/orders', icon: '📦' },
@@ -129,7 +138,7 @@ export const useUserStore = defineStore('user', () => {
       ]
     }
     
-    return menus[user.value?.role] || []
+    return menus[userRole] || []
   }
 
   // 获取角色显示名称

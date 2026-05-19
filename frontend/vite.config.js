@@ -14,6 +14,10 @@ export default defineConfig({
         target: 'http://localhost:8081',
         changeOrigin: true
       },
+      '/api/menu': {
+        target: 'http://localhost:8181',
+        changeOrigin: true
+      },
       '/api/queue': {
         target: 'http://localhost:8085',
         changeOrigin: true

@@ -45,6 +45,12 @@ public class ShopInfo implements Serializable {
     @Schema(description = "店铺总座位数", example = "120")
     private Integer capacity;
 
+    @Schema(description = "桌台数量", example = "20")
+    private Integer tableCount;
+
+    @Schema(description = "店铺类型：1-快餐店，2-中餐厅，3-西餐厅，4-咖啡厅，5-其他", example = "1")
+    private Integer shopType;
+
     @Schema(description = "店铺描述信息", example = "主营川菜、湘菜")
     private String description;
 

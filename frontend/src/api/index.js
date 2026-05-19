@@ -172,6 +172,10 @@ export const orderApi = {
   getByShop(shopId) {
     return request.get(`/order/shop/${shopId}`)
   },
+  // 根据排队ID获取订单
+  getByQueue(queueId) {
+    return request.get(`/order/queue/${queueId}`)
+  },
   // 更新订单状态
   updateStatus(id, status) {
     return request.put(`/order/${id}/status`, null, { params: { orderStatus: status } })

@@ -135,8 +135,19 @@
             >
               取消排队
             </button>
-            <span v-if="queue.queueStatus === 1" class="called-tip">
-              🔔 请前往就餐
+            <!-- 已叫号但未下单，显示前往点菜按钮 -->
+            <button 
+              v-if="queue.queueStatus === 1 && !hasOrder(queue.id)" 
+              @click="goToOrdering(queue)" 
+              class="btn-ordering"
+            >
+              🍽️ 前往点菜
+            </button>
+            <span v-if="queue.queueStatus === 1 && hasOrder(queue.id)" class="called-tip">
+              ✅ 已下单，请等待上菜
+            </span>
+            <span v-if="queue.queueStatus === 1 && !hasOrder(queue.id)" class="called-tip">
+              🔔 请前往点菜就餐
             </span>
           </div>
         </div>
@@ -147,15 +158,18 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { queueApi, shopApi, createWebSocket } from '../api'
+import { useRouter } from 'vue-router'
+import { queueApi, shopApi, orderApi, createWebSocket } from '../api'
 import { useUserStore } from '../stores/user'
 
+const router = useRouter()
 const userStore = useUserStore()
 const queues = ref([])
 const shops = ref([])
 const realTimeQueue = ref(null)
 const callingList = ref([])
 const takingNumber = ref(false)
+const queueOrderStatus = ref({}) // { queueId: hasOrder }
 let ws = null
 
 const form = ref({
@@ -223,6 +237,19 @@ const loadQueues = async () => {
   try {
     const res = await queueApi.getList()
     queues.value = res.data || []
+    
+    // 检查每个已叫号的排队是否有订单
+    for (const queue of queues.value) {
+      if (queue.queueStatus === 1) {
+        try {
+          const orderRes = await orderApi.getByQueue(queue.id)
+          queueOrderStatus.value[queue.id] = orderRes.data && orderRes.data.length > 0
+        } catch (error) {
+          console.error(`查询排队${queue.id}的订单失败:`, error)
+          queueOrderStatus.value[queue.id] = false
+        }
+      }
+    }
   } catch (error) {
     console.error('加载排队失败:', error)
   }
@@ -334,6 +361,20 @@ const getStatusBadgeClass = (status) => {
     4: 'badge-missed'
   }
   return classes[status] || ''
+}
+
+// 检查排队是否已关联订单
+const hasOrder = (queueId) => {
+  return queueOrderStatus.value[queueId] || false
+}
+
+// 前往点菜页面
+const goToOrdering = (queue) => {
+  console.log('前往点菜 - 排队ID:', queue.id)
+  router.push({
+    path: '/ordering',
+    query: { queueId: queue.id }
+  })
 }
 
 // 加载店铺列表
@@ -759,6 +800,21 @@ input:focus, select:focus {
 
 .btn-cancel:hover {
   background: #e53e3e;
+}
+
+.btn-ordering {
+  padding: 8px 16px;
+  background: #f6ad55;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: background 0.3s;
+}
+
+.btn-ordering:hover {
+  background: #ed8936;
 }
 
 .called-tip {
