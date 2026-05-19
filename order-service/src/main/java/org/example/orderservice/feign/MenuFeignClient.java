@@ -40,6 +40,7 @@ public interface MenuFeignClient {
         private java.math.BigDecimal price;
         private Integer stock;
         private Integer isAvailable; // 1-可售，0-不可售
+        private Integer prepareTime; // 预计制作时间（分钟）
 
         public Long getId() {
             return id;
@@ -79,6 +80,14 @@ public interface MenuFeignClient {
 
         public void setIsAvailable(Integer isAvailable) {
             this.isAvailable = isAvailable;
+        }
+
+        public Integer getPrepareTime() {
+            return prepareTime;
+        }
+
+        public void setPrepareTime(Integer prepareTime) {
+            this.prepareTime = prepareTime;
         }
     }
 }

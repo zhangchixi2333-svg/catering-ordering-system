@@ -19,6 +19,7 @@ import org.example.orderservice.feign.MenuFeignClient;
 import org.example.orderservice.feign.NotificationFeignClient;
 import org.example.orderservice.feign.QueueFeignClient;
 import org.example.orderservice.feign.ShopFeignClient;
+import org.example.orderservice.feign.TableFeignClient;
 import org.example.orderservice.mapper.OrderItemMapper;
 import org.example.orderservice.service.OrdersService;
 import org.example.orderservice.util.OrderNoGenerator;
@@ -40,6 +41,7 @@ public class OrdersController {
     private final OrdersService ordersService;
     private final OrderItemMapper orderItemMapper;
     private final ShopFeignClient shopFeignClient;
+    private final TableFeignClient tableFeignClient;
     private final MenuFeignClient menuFeignClient;
     private final QueueFeignClient queueFeignClient;
     private final NotificationFeignClient notificationFeignClient;
@@ -108,16 +110,16 @@ public class OrdersController {
     }
 
     @Operation(
-        summary = "根据排队ID获取订单列表",
+        summary = "根据排队号码获取订单列表",
         description = "<font color='green'>📋 功能说明：</font><br/>" +
-                "查询指定排队记录关联的所有订单，按创建时间倒序排列<br/><br/>" +
+                "查询指定排队号码关联的所有订单，按创建时间倒序排列<br/><br/>" +
                 "<font color='blue'>💡 使用场景：</font><br/>" +
                 "- 排队页面检查用户是否已下单<br/>" +
                 "- 判断是否需要显示'前往点菜'按钮<br/>" +
                 "- 一个排队可能对应多个订单（多次点餐）<br/><br/>" +
                 "<font color='orange'>⚠️ 注意事项：</font><br/>" +
                 "- 如果该排队没有关联任何订单，返回空数组 []<br/>" +
-                "- 仅返回与 queueId 匹配的订单"
+                "- 仅返回与 queueNumber 匹配的订单"
     )
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "查询成功",
@@ -132,7 +134,7 @@ public class OrdersController {
                             "    {\n" +
                             "      \"id\": 123,\n" +
                             "      \"orderNo\": \"ORD2026051900001\",\n" +
-                            "      \"queueId\": 17,\n" +
+                            "      \"queueNumber\": \"A001\",\n" +
                             "      \"totalAmount\": 94.00,\n" +
                             "      \"itemCount\": 3,\n" +
                             "      \"orderStatus\": 0\n" +
@@ -155,12 +157,12 @@ public class OrdersController {
             )
         )
     })
-    @GetMapping("/queue/{queueId}")
+    @GetMapping("/queue/{queueNumber}")
     public Result<List<Orders>> getOrdersByQueue(
-            @Parameter(description = "排队ID", example = "17", required = true)
-            @PathVariable("queueId") Long queueId) {
+            @Parameter(description = "排队号码（如：A001、B002）", example = "A001", required = true)
+            @PathVariable("queueNumber") String queueNumber) {
         List<Orders> orders = ordersService.lambdaQuery()
-                .eq(Orders::getQueueId, queueId)
+                .eq(Orders::getQueueNumber, queueNumber)
                 .orderByDesc(Orders::getCreatedAt)
                 .list();
         return Result.success(orders);
@@ -176,25 +178,29 @@ public class OrdersController {
     }
 
     @Operation(
-        summary = "创建订单（完整点单流程）",
+        summary = "创建订单（完整点单流程 - 支持自动分配桌子和估算时间）",
         description = "<font color='red'>【核心功能】</font> 创建新订单，包含订单主表和订单明细<br/><br/>" +
                 "<font color='green'>📋 业务流程：</font><br/>" +
                 "1. <b>验证店铺</b> - 通过 Feign 调用 shop-service 验证店铺是否存在且营业中<br/>" +
-                "2. <b>验证排队</b> - 如果提供 queueId，验证排队记录是否存在且状态为'已叫号'<br/>" +
-                "3. <b>验证订单明细</b> - 检查 items 列表不为空<br/>" +
-                "4. <b>服务端计算</b> - 自动计算订单总金额（totalAmount）和菜品总数量（itemCount）<br/>" +
-                "5. <b>保存订单</b> - 先保存 orders 主表，再批量保存 order_item 明细表<br/>" +
-                "6. <b>发送通知</b> - 通过 notification-service 推送 WebSocket 通知给用户<br/>" +
-                "7. <b>更新排队</b> - 如果有关联排队，从 Redis 叫号队列移除<br/><br/>" +
+                "2. <b>验证排队</b> - 如果提供 queueNumber，验证排队记录是否存在且状态为'已叫号'<br/>" +
+                "3. <b>自动分配桌子</b> - 如果是堂食且未指定 tableId，自动查询并分配空闲桌子<br/>" +
+                "4. <b>验证订单明细</b> - 检查 items 列表不为空<br/>" +
+                "5. <b>服务端计算</b> - 自动计算订单总金额（totalAmount）、菜品总数量（itemCount）和预计制作时间（estimatedTime）<br/>" +
+                "6. <b>保存订单</b> - 先保存 orders 主表，再批量保存 order_item 明细表<br/>" +
+                "7. <b>发送通知</b> - 通过 notification-service 推送 WebSocket 通知给用户<br/>" +
+                "8. <b>更新排队</b> - 如果有关联排队，从 Redis 叫号队列移除<br/><br/>" +
                 "<font color='blue'>💡 使用场景：</font><br/>" +
                 "- 用户被叫号后点击'前往点菜'按钮<br/>" +
                 "- 用户在点餐页面选择菜品并提交订单<br/>" +
-                "- 订单自动关联排队ID，实现排队与订单的绑定<br/><br/>" +
+                "- 订单自动关联排队号码，实现排队与订单的绑定<br/>" +
+                "- 系统自动为用户分配空闲桌子（堂食场景）<br/>" +
+                "- 根据菜品制作时间估算订单完成时间<br/><br/>" +
                 "<font color='orange'>⚠️ 注意事项：</font><br/>" +
                 "- 订单金额由服务端计算，不使用前端传入的值（安全考虑）<br/>" +
                 "- 订单明细必须包含 itemId、itemName、price、quantity 字段<br/>" +
                 "- 如果排队服务不可用，会返回错误，不允许创建订单<br/>" +
-                "- 通知推送失败不影响订单创建（降级策略）"
+                "- 通知推送失败不影响订单创建（降级策略）<br/>" +
+                "- estimatedTime 由服务端根据菜品制作时间自动计算，无需前端传入"
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
         description = "订单创建请求数据",
@@ -203,12 +209,13 @@ public class OrdersController {
             mediaType = "application/json",
             schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = OrderCreateRequest.class),
             examples = @io.swagger.v3.oas.annotations.media.ExampleObject(
-                name = "堂食订单示例",
+                name = "堂食订单示例（自动分配桌子）",
                 value = "{\n" +
                         "  \"shopId\": 1,\n" +
                         "  \"userId\": 1001,\n" +
                         "  \"orderType\": 1,\n" +
-                        "  \"queueId\": 17,\n" +
+                        "  \"queueNumber\": \"A001\",\n" +
+                        "  \"tableId\": null,\n" +
                         "  \"remark\": \"不要辣，少盐\",\n" +
                         "  \"items\": [\n" +
                         "    {\n" +
@@ -252,7 +259,7 @@ public class OrdersController {
     @PostMapping
     public Result<Boolean> createOrder(@RequestBody @Valid OrderCreateRequest request) {
         System.out.println("\n========== 订单创建开始 ==========");
-        System.out.println("请求参数: shopId=" + request.getShopId() + ", userId=" + request.getUserId() + ", queueId=" + request.getQueueId());
+        System.out.println("请求参数: shopId=" + request.getShopId() + ", userId=" + request.getUserId() + ", queueNumber=" + request.getQueueNumber());
         
         // 1. 验证店铺是否存在且营业中
         System.out.println("步骤1: 调用 Shop Service 验证店铺...");
@@ -268,25 +275,25 @@ public class OrdersController {
             return Result.error("店铺当前未营业，无法下单");
         }
         
-        // 2. 如果有排队ID，验证排队是否存在且已叫号
+        // 2. 如果有排队号码，验证排队是否存在且已叫号
         System.out.println("\n步骤2: 检查是否需要验证排队...");
-        System.out.println("queueId 的值: " + request.getQueueId());
-        System.out.println("queueId 是否为 null: " + (request.getQueueId() == null));
+        System.out.println("queueNumber 的值: " + request.getQueueNumber());
+        System.out.println("queueNumber 是否为 null: " + (request.getQueueNumber() == null));
         
-        if (request.getQueueId() != null) {
+        if (request.getQueueNumber() != null) {
             System.out.println("\n========== 开始调用 Queue Service ==========");
-            System.out.println("排队ID: " + request.getQueueId());
+            System.out.println("排队号码: " + request.getQueueNumber());
             
             try {
-                System.out.println("调用 queueFeignClient.getQueueById()...");
+                System.out.println("调用 queueFeignClient.getQueueByNo()...");
                 
-                Result<QueueFeignClient.QueueInfoDTO> queueResult = queueFeignClient.getQueueById(request.getQueueId());
+                Result<QueueFeignClient.QueueInfoDTO> queueResult = queueFeignClient.getQueueByNo(request.getQueueNumber());
                 
                 System.out.println("Queue Service 返回结果: " + (queueResult != null ? queueResult.getCode() : "null"));
                 
                 if (queueResult == null || queueResult.getData() == null) {
                     System.err.println("❌ Queue Service 返回数据为空");
-                    return Result.error("排队记录不存在，ID: " + request.getQueueId());
+                    return Result.error("排队记录不存在，号码: " + request.getQueueNumber());
                 }
                 
                 QueueFeignClient.QueueInfoDTO queueInfo = queueResult.getData();
@@ -299,7 +306,7 @@ public class OrdersController {
                             getQueueStatusText(queueInfo.getQueueStatus()));
                 }
                 
-                System.out.println("✅ 排队验证通过 - 排队ID: " + request.getQueueId() + ", 状态: 已叫号, 号码: " + queueInfo.getQueueNo());
+                System.out.println("✅ 排队验证通过 - 排队号码: " + request.getQueueNumber() + ", 状态: 已叫号");
                 System.out.println("========== Queue Service 调用结束 ==========\n");
             } catch (Exception e) {
                 System.err.println("\n========== Queue Service 调用异常 ==========");
@@ -311,9 +318,9 @@ public class OrdersController {
                 return Result.error("排队服务暂时不可用，请稍后重试");
             }
         } else {
-            System.out.println("⚠️ 跳过 Queue Service 调用 - 原因: queueId 为 null");
-            System.out.println("提示：如果要测试 Queue Service 调用，请在请求中包含 queueId 字段");
-            System.out.println("例如: {\"shopId\":1, \"userId\":1001, \"queueId\":1}\n");
+            System.out.println("⚠️ 跳过 Queue Service 调用 - 原因: queueNumber 为 null");
+            System.out.println("提示：如果要测试 Queue Service 调用，请在请求中包含 queueNumber 字段");
+            System.out.println("例如: {\"shopId\":1, \"userId\":1001, \"queueNumber\":\"A001\"}\n");
         }
         
         // 3. 验证订单明细
@@ -324,20 +331,61 @@ public class OrdersController {
         }
         System.out.println("✅ 订单明细数量: " + request.getItems().size());
         
-        // 4. 计算订单总金额和总数量（服务端计算）
-        System.out.println("\n步骤4: 计算订单金额和数量...");
+        // 3.5 自动分配桌子（如果是堂食且未指定tableId）
+        if (request.getOrderType() != null && request.getOrderType() == 1 && request.getTableId() == null) {
+            System.out.println("\n步骤3.5: 自动分配空闲桌子...");
+            try {
+                Result<List<TableFeignClient.TableInfoDTO>> tablesResult = tableFeignClient.getAvailableTables(request.getShopId());
+                
+                if (tablesResult != null && tablesResult.getData() != null && !tablesResult.getData().isEmpty()) {
+                    // 选择第一个可用的桌子
+                    TableFeignClient.TableInfoDTO firstTable = tablesResult.getData().get(0);
+                    request.setTableId(firstTable.getId());
+                    System.out.println("✅ 自动分配桌子: " + firstTable.getTableNumber() + 
+                                     " (ID: " + firstTable.getId() + ", 容纳人数: " + firstTable.getCapacity() + ")");
+                } else {
+                    System.err.println("⚠️ 没有可用的桌子");
+                    return Result.error("当前没有可用的桌子，请稍后再试");
+                }
+            } catch (Exception e) {
+                System.err.println("❌ 查询可用桌子失败: " + e.getMessage());
+                // 降级策略：不阻断订单创建，允许用户稍后手动分配
+                System.out.println("⚠️ 跳过自动分配桌子，继续创建订单");
+            }
+        }
+        
+        // 4. 计算订单总金额、总数量和估算制作时间（服务端计算）
+        System.out.println("\n步骤4: 计算订单金额、数量和估算时间...");
         BigDecimal totalAmount = BigDecimal.ZERO;
         int itemCount = 0;
+        int maxPrepareTime = 0;  // 最长制作时间
         
         for (OrderItemRequest itemRequest : request.getItems()) {
             BigDecimal subtotal = itemRequest.getPrice().multiply(new BigDecimal(itemRequest.getQuantity()));
             totalAmount = totalAmount.add(subtotal);
             itemCount += itemRequest.getQuantity();
+            
+            // 获取菜品制作时间
+            try {
+                Result<MenuFeignClient.MenuItemInfoDTO> itemResult = menuFeignClient.getMenuItemById(itemRequest.getItemId());
+                if (itemResult != null && itemResult.getData() != null) {
+                    Integer prepareTime = itemResult.getData().getPrepareTime();
+                    if (prepareTime != null && prepareTime > maxPrepareTime) {
+                        maxPrepareTime = prepareTime;
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("⚠️ 获取菜品 " + itemRequest.getItemId() + " 的制作时间失败: " + e.getMessage());
+            }
+            
             System.out.println(String.format("  - %s x%d = ¥%.2f", 
                 itemRequest.getItemName(), itemRequest.getQuantity(), subtotal.doubleValue()));
         }
         
-        System.out.println(String.format("✅ 订单总金额: ¥%.2f, 总数量: %d", totalAmount.doubleValue(), itemCount));
+        // 估算时间 = 最长制作时间 + 缓冲时间（5分钟）
+        int estimatedTime = maxPrepareTime > 0 ? maxPrepareTime + 5 : 15; // 默认15分钟
+        System.out.println(String.format("✅ 订单总金额: ¥%.2f, 总数量: %d, 估算时间: %d分钟", 
+            totalAmount.doubleValue(), itemCount, estimatedTime));
         
         // 5. 创建订单主表
         System.out.println("\n步骤5: 创建订单记录...");
@@ -345,10 +393,11 @@ public class OrdersController {
         BeanUtils.copyProperties(request, order);
         // 生成订单号
         order.setOrderNo(OrderNoGenerator.generate());
-        // 设置服务端计算的金额和数量
+        // 设置服务端计算的金额、数量和估算时间
         order.setTotalAmount(totalAmount);  // ✅ 服务端计算
         order.setActualAmount(totalAmount); // ✅ 暂时无优惠
         order.setItemCount(itemCount);      // ✅ 服务端统计
+        order.setEstimatedTime(estimatedTime); // ✅ 服务端估算
         
         // 设置默认值
         if (order.getOrderStatus() == null) {
@@ -416,13 +465,13 @@ public class OrdersController {
             }
         }
         
-        // 8. 如果有排队ID，从Redis叫号队列移除（订单创建成功意味着用户已入座）
-        if (request.getQueueId() != null) {
+        // 8. 如果有排队号码，从Redis叫号队列移除（订单创建成功意味着用户已入座）
+        if (request.getQueueNumber() != null) {
             try {
-                System.out.println("开始从Redis叫号队列移除 - 排队ID: " + request.getQueueId());
+                System.out.println("开始从Redis叫号队列移除 - 排队号码: " + request.getQueueNumber());
                 // TODO: 这里可以调用 queue-service 的接口从 Redis 移除
-                // queueFeignClient.removeFromCallingQueue(request.getQueueId());
-                System.out.println("✅ 已从Redis叫号队列移除 - 排队ID: " + request.getQueueId());
+                // queueFeignClient.removeFromCallingQueue(request.getQueueNumber());
+                System.out.println("✅ 已从Redis叫号队列移除 - 排队号码: " + request.getQueueNumber());
             } catch (Exception e) {
                 System.err.println("⚠️ 从Redis移除失败，但不影响订单创建: " + e.getMessage());
             }

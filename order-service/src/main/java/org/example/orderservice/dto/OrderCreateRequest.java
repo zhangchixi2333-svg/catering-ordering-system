@@ -25,7 +25,7 @@ import java.util.List;
  *   "shopId": 1,
  *   "userId": 1001,
  *   "orderType": 1,
- *   "queueId": 17,
+ *   "queueNumber": "A001",
  *   "remark": "不要辣，少盐",
  *   "items": [
  *     {
@@ -63,8 +63,8 @@ public class OrderCreateRequest {
     @NotNull(message = "订单类型不能为空")
     private Integer orderType;
 
-    @Schema(description = "排队ID（可选，关联已叫号的排队记录）", example = "17")
-    private Long queueId;
+    @Schema(description = "排队号码（可选，关联已叫号的排队记录，如：A001、B002）", example = "A001")
+    private String queueNumber;
 
     @Schema(description = "订单备注（如：不要辣、少盐）", example = "不要辣，少盐")
     private String remark;

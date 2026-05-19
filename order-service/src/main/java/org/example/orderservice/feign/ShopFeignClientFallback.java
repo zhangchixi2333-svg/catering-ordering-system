@@ -4,6 +4,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.orderservice.common.Result;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * ShopFeignClient熔断降级处理类
  * 当shop-service不可用时，提供友好的降级响应

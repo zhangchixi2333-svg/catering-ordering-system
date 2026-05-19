@@ -85,10 +85,7 @@ public class Orders implements Serializable {
     @Schema(description = "取消原因", example = "用户取消")
     private String cancelReason;
 
-    @Schema(description = "排队ID", example = "17")
-    private Long queueId;
-
-    @Schema(description = "排队号码", example = "A001")
+    @Schema(description = "排队号码（如：A001、B002）", example = "A001")
     private String queueNumber;
 
     @Schema(description = "预计等待时间（分钟）", example = "15")

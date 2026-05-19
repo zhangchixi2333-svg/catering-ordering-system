@@ -5,6 +5,10 @@ spring:
   application:
     name: order-service
   
+  # 允许Bean定义覆盖（解决多个FeignClient指向同一服务时的冲突）
+  main:
+    allow-bean-definition-overriding: true
+  
   # Eureka配置
   cloud:
     compatibility-verifier:

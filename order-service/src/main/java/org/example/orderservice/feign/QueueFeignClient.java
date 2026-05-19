@@ -31,6 +31,14 @@ public interface QueueFeignClient {
     Result<QueueInfoDTO> getQueueById(@PathVariable("id") Long id);
 
     /**
+     * 根据排队号码获取排队信息
+     * @param queueNo 排队号码（如：A001、B002）
+     * @return 排队信息
+     */
+    @GetMapping("/api/queue/no/{queueNo}")
+    Result<QueueInfoDTO> getQueueByNo(@PathVariable("queueNo") String queueNo);
+
+    /**
      * 排队信息DTO
      */
     class QueueInfoDTO {
