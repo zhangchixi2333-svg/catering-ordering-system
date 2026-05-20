@@ -23,6 +23,7 @@ import org.example.orderservice.feign.TableFeignClient;
 import org.example.orderservice.mapper.OrderItemMapper;
 import org.example.orderservice.service.OrdersService;
 import org.example.orderservice.util.OrderNoGenerator;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
 
@@ -184,23 +185,32 @@ public class OrdersController {
                 "1. <b>验证店铺</b> - 通过 Feign 调用 shop-service 验证店铺是否存在且营业中<br/>" +
                 "2. <b>验证排队</b> - 如果提供 queueNumber，验证排队记录是否存在且状态为'已叫号'<br/>" +
                 "3. <b>自动分配桌子</b> - 如果是堂食且未指定 tableId，自动查询并分配空闲桌子<br/>" +
-                "4. <b>验证订单明细</b> - 检查 items 列表不为空<br/>" +
-                "5. <b>服务端计算</b> - 自动计算订单总金额（totalAmount）、菜品总数量（itemCount）和预计制作时间（estimatedTime）<br/>" +
-                "6. <b>保存订单</b> - 先保存 orders 主表，再批量保存 order_item 明细表<br/>" +
-                "7. <b>发送通知</b> - 通过 notification-service 推送 WebSocket 通知给用户<br/>" +
-                "8. <b>更新排队</b> - 如果有关联排队，从 Redis 叫号队列移除<br/><br/>" +
+                "4. <b>获取桌台编号</b> - 如果已指定 tableId，从 shop-service 查询 table_info 表获取 tableNumber 并填充<br/>" +
+                "5. <b>验证订单明细</b> - 检查 items 列表不为空<br/>" +
+                "6. <b>服务端计算</b> - 自动计算订单总金额（totalAmount）、菜品总数量（itemCount）和预计制作时间（estimatedTime）<br/>" +
+                "7. <b>保存订单</b> - 先保存 orders 主表，再批量保存 order_item 明细表<br/>" +
+                "8. <b>发送通知</b> - 通过 notification-service 推送 WebSocket 通知给用户<br/>" +
+                "9. <b>更新排队</b> - 如果有关联排队，从 Redis 叫号队列移除<br/>" +
+                "10. <b>更新桌台状态</b> - 如果有桌台ID，将桌台状态更新为'已占用'（状态码1）<br/>" +
+                "11. <b>✨更新排队状态</b> - 如果有排队号码，将排队状态更新为'已入座'（状态码2）<br/><br/>" +
                 "<font color='blue'>💡 使用场景：</font><br/>" +
                 "- 用户被叫号后点击'前往点菜'按钮<br/>" +
                 "- 用户在点餐页面选择菜品并提交订单<br/>" +
                 "- 订单自动关联排队号码，实现排队与订单的绑定<br/>" +
                 "- 系统自动为用户分配空闲桌子（堂食场景）<br/>" +
-                "- 根据菜品制作时间估算订单完成时间<br/><br/>" +
+                "- 根据菜品制作时间估算订单完成时间<br/>" +
+                "- 自动从 table_info 表查询并填充桌台编号（tableNumber）<br/>" +
+                "- 订单创建成功后自动将桌台状态更新为'已占用'<br/>" +
+                "- 订单创建成功后自动将排队状态更新为'已入座'<br/><br/>" +
                 "<font color='orange'>⚠️ 注意事项：</font><br/>" +
                 "- 订单金额由服务端计算，不使用前端传入的值（安全考虑）<br/>" +
                 "- 订单明细必须包含 itemId、itemName、price、quantity 字段<br/>" +
                 "- 如果排队服务不可用，会返回错误，不允许创建订单<br/>" +
                 "- 通知推送失败不影响订单创建（降级策略）<br/>" +
-                "- estimatedTime 由服务端根据菜品制作时间自动计算，无需前端传入"
+                "- estimatedTime 由服务端根据菜品制作时间自动计算，无需前端传入<br/>" +
+                "- tableNumber 由服务端从 table_info 表自动查询并填充，无需前端传入<br/>" +
+                "- 桌台状态更新失败不影响订单创建（降级策略），可稍后手动更新<br/>" +
+                "- 排队状态更新失败不影响订单创建（降级策略），可稍后手动更新"
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
         description = "订单创建请求数据",
@@ -354,6 +364,26 @@ public class OrdersController {
             }
         }
         
+        // 3.6 如果已指定tableId，从shop-service获取桌台编号（tableNumber）
+        String tableNumber = null;
+        if (request.getTableId() != null) {
+            System.out.println("\n步骤3.6: 获取桌台编号...");
+            try {
+                Result<TableFeignClient.TableInfoDTO> tableResult = tableFeignClient.getTableById(request.getTableId());
+                
+                if (tableResult != null && tableResult.getData() != null) {
+                    tableNumber = tableResult.getData().getTableNumber();
+                    System.out.println("✅ 获取桌台编号成功: " + tableNumber);
+                } else {
+                    System.err.println("⚠️ 无法获取桌台信息，桌台ID: " + request.getTableId());
+                }
+            } catch (Exception e) {
+                System.err.println("❌ 获取桌台编号失败: " + e.getMessage());
+                // 降级策略：不阻断订单创建，tableNumber可以为null
+                System.out.println("⚠️ 跳过获取桌台编号，继续创建订单");
+            }
+        }
+        
         // 4. 计算订单总金额、总数量和估算制作时间（服务端计算）
         System.out.println("\n步骤4: 计算订单金额、数量和估算时间...");
         BigDecimal totalAmount = BigDecimal.ZERO;
@@ -398,6 +428,12 @@ public class OrdersController {
         order.setActualAmount(totalAmount); // ✅ 暂时无优惠
         order.setItemCount(itemCount);      // ✅ 服务端统计
         order.setEstimatedTime(estimatedTime); // ✅ 服务端估算
+        
+        // 填充从shop-service获取的tableNumber
+        if (tableNumber != null) {
+            order.setTableNumber(tableNumber);
+            System.out.println("✅ 已填充桌台编号: " + tableNumber);
+        }
         
         // 设置默认值
         if (order.getOrderStatus() == null) {
@@ -477,6 +513,58 @@ public class OrdersController {
             }
         }
         
+        // 9. 如果有桌台ID，将桌台状态更新为"已占用"（状态码1）
+        if (request.getTableId() != null) {
+            System.out.println("\n步骤9: 更新桌台状态为已占用...");
+            try {
+                TableFeignClient.TableStatusUpdateRequest statusRequest = new TableFeignClient.TableStatusUpdateRequest();
+                statusRequest.setTableStatus(1); // 1-已占用
+                
+                Result<Boolean> updateResult = tableFeignClient.updateTableStatus(request.getTableId(), statusRequest);
+                
+                if (updateResult != null && Boolean.TRUE.equals(updateResult.getData())) {
+                    System.out.println("✅ 桌台状态更新成功 - 桌台ID: " + request.getTableId() + ", 状态: 已占用");
+                } else {
+                    String errorMsg = updateResult != null ? updateResult.getMessage() : "返回结果为null";
+                    System.err.println("⚠️ 桌台状态更新失败 - 桌台ID: " + request.getTableId() + ", 原因: " + errorMsg);
+                }
+            } catch (Exception e) {
+                // 桌台状态更新失败不影响订单创建主流程（降级策略）
+                System.err.println("❌ 桌台状态更新异常 - 桌台ID: " + request.getTableId() + ", 错误: " + e.getMessage());
+                System.out.println("⚠️ 桌台状态更新失败，但不影响订单创建，可稍后手动更新");
+            }
+        }
+        
+        // 10. 如果有排队号码，将排队状态更新为"已入座"（状态码2）
+        if (request.getQueueNumber() != null) {
+            System.out.println("\n步骤10: 更新排队状态为已入座...");
+            try {
+                // 先根据排队号码获取排队信息
+                Result<QueueFeignClient.QueueInfoDTO> queueResult = queueFeignClient.getQueueByNo(request.getQueueNumber());
+                
+                if (queueResult != null && queueResult.getData() != null) {
+                    Long queueId = queueResult.getData().getId();
+                    System.out.println("获取到排队ID: " + queueId);
+                    
+                    // 更新排队状态为已入座（2）
+                    Result<Boolean> updateResult = queueFeignClient.updateQueueStatus(queueId, 2);
+                    
+                    if (updateResult != null && Boolean.TRUE.equals(updateResult.getData())) {
+                        System.out.println("✅ 排队状态更新成功 - 排队号码: " + request.getQueueNumber() + ", 状态: 已入座");
+                    } else {
+                        String errorMsg = updateResult != null ? updateResult.getMessage() : "返回结果为null";
+                        System.err.println("⚠️ 排队状态更新失败 - 排队号码: " + request.getQueueNumber() + ", 原因: " + errorMsg);
+                    }
+                } else {
+                    System.err.println("⚠️ 无法获取排队信息 - 排队号码: " + request.getQueueNumber());
+                }
+            } catch (Exception e) {
+                // 排队状态更新失败不影响订单创建主流程（降级策略）
+                System.err.println("❌ 排队状态更新异常 - 排队号码: " + request.getQueueNumber() + ", 错误: " + e.getMessage());
+                System.out.println("⚠️ 排队状态更新失败，但不影响订单创建，可稍后手动更新");
+            }
+        }
+        
         // 9. TODO: 扣减库存（异步处理或后续补偿）
         // 这里可以发送MQ消息或直接调用menu-service扣减库存
         
@@ -532,6 +620,72 @@ public class OrdersController {
         return success ? Result.success(true) : Result.error("取消失败");
     }
 
+    @Operation(
+        summary = "支付成功后更新订单状态（payment-service调用）",
+        description = "<font color='red'>【服务间调用】</font><br/>" +
+                "当payment-service收到第三方支付平台通知后，调用此接口更新订单状态<br/><br/>" +
+                "<font color='green'>业务流程：</font><br/>" +
+                "1. <b>验证订单</b> - 根据订单编号和ID查询订单是否存在<br/>" +
+                "2. <b>更新订单状态</b> - 将订单状态更新为'待接单'（orderStatus=1）<br/>" +
+                "3. <b>更新支付状态</b> - 将支付状态更新为'已支付'（paymentStatus=1），记录支付时间<br/><br/>" +
+                "<font color='blue'>💡 使用场景：</font><br/>" +
+                "- 微信支付、支付宝等第三方支付平台支付成功后，通过payment-service回调此接口<br/>" +
+                "- 确保订单状态与支付状态的一致性<br/><br/>" +
+                "<font color='orange'>⚠️ 注意事项：</font><br/>" +
+                "- 此接口仅供payment-service通过Feign调用，不直接对外暴露<br/>" +
+                "- 如果订单已经是'待接单'状态，不会重复处理"
+    )
+    @PutMapping("/payment/success")
+    public Result<Boolean> updateOrderStatusByPayment(
+            @Parameter(description = "订单编号", example = "ORD2026051700001", required = true)
+            @RequestParam("orderNo") String orderNo,
+            @Parameter(description = "订单ID", example = "1", required = true)
+            @RequestParam("orderId") Long orderId) {
+        System.out.println("\n========== 开始更新订单状态（支付成功） ==========");
+        System.out.println("订单编号: " + orderNo);
+        System.out.println("订单ID: " + orderId);
+        
+        // 1. 查询订单
+        LambdaQueryWrapper<Orders> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Orders::getOrderNo, orderNo)
+               .eq(Orders::getId, orderId);
+        Orders order = ordersService.getOne(wrapper);
+        
+        if (order == null) {
+            System.err.println("❌ 订单不存在 - 订单号: " + orderNo + ", 订单ID: " + orderId);
+            return Result.error("订单不存在");
+        }
+        
+        System.out.println("✅ 找到订单 - 当前状态: " + getOrderByStatusText(order.getOrderStatus()) 
+                          + ", 支付状态: " + (order.getPaymentStatus() != null ? (order.getPaymentStatus() == 0 ? "未支付" : "已支付") : "未知"));
+        
+        // 2. 验证订单状态（只有待支付状态的订单才能更新为待接单）
+        if (order.getOrderStatus() != null && order.getOrderStatus() >= 1) {
+            System.out.println("⚠️ 订单已经处于待接单或之后状态，无需重复更新");
+            return Result.success(true);
+        }
+        
+        // 3. 更新订单状态
+        order.setOrderStatus(1); // 1-待接单
+        order.setPaymentStatus(1); // 1-已支付
+        order.setPaymentTime(java.time.LocalDateTime.now()); // ✅ 服务端生成支付时间
+        
+        boolean success = ordersService.updateById(order);
+        
+        if (success) {
+            System.out.println("✅ 订单状态更新成功");
+            System.out.println("  - 订单状态: 待支付 → 待接单");
+            System.out.println("  - 支付状态: 未支付 → 已支付");
+            System.out.println("  - 支付时间: " + order.getPaymentTime());
+            System.out.println("==========================================\n");
+            return Result.success(true);
+        } else {
+            System.err.println("❌ 订单状态更新失败");
+            System.err.println("==========================================\n");
+            return Result.error("更新订单状态失败");
+        }
+    }
+
     /**
      * 获取排队状态文本描述
      */
@@ -543,6 +697,22 @@ public class OrdersController {
             case 2: return "已完成";
             case 3: return "已取消";
             case 4: return "已过号";
+            default: return "未知状态(" + status + ")";
+        }
+    }
+
+    /**
+     * 获取订单状态文本描述
+     */
+    private String getOrderByStatusText(Integer status) {
+        if (status == null) return "待支付";
+        switch (status) {
+            case 0: return "待支付";
+            case 1: return "待接单";
+            case 2: return "制作中";
+            case 3: return "待取餐";
+            case 4: return "已完成";
+            case 5: return "已取消";
             default: return "未知状态(" + status + ")";
         }
     }

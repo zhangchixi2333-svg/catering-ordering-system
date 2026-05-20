@@ -4,6 +4,8 @@ import org.example.orderservice.common.Result;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -37,6 +39,15 @@ public interface QueueFeignClient {
      */
     @GetMapping("/api/queue/no/{queueNo}")
     Result<QueueInfoDTO> getQueueByNo(@PathVariable("queueNo") String queueNo);
+
+    /**
+     * 更新排队状态
+     * @param id 排队ID
+     * @param queueStatus 排队状态：0-等待中，1-已叫号，2-已入座，3-已取消，4-已过号
+     * @return 更新结果
+     */
+    @PutMapping("/api/queue/{id}/status")
+    Result<Boolean> updateQueueStatus(@PathVariable("id") Long id, @RequestParam("queueStatus") Integer queueStatus);
 
     /**
      * 排队信息DTO

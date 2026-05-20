@@ -4,6 +4,8 @@ import org.example.paymentservice.common.Result;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 /**
  * 订单服务Feign客户端
@@ -19,6 +21,18 @@ public interface OrderFeignClient {
      */
     @GetMapping("/no/{orderNo}")
     Result<OrderInfoDTO> getOrderByOrderNo(@PathVariable("orderNo") String orderNo);
+
+    /**
+     * 支付成功后更新订单状态
+     * @param orderNo 订单编号
+     * @param orderId 订单ID
+     * @return 更新结果
+     */
+    @PutMapping("/payment/success")
+    Result<Boolean> updateOrderStatusByPayment(
+        @RequestParam("orderNo") String orderNo,
+        @RequestParam("orderId") Long orderId
+    );
 
     /**
      * 订单信息DTO（简化版，只包含payment-service需要的字段）

@@ -31,4 +31,10 @@ public class QueueFeignClientFallback implements QueueFeignClient {
         log.error("调用queue-service失败，排队号码: {}", queueNo);
         return Result.error("排队服务暂时不可用");
     }
+
+    @Override
+    public Result<Boolean> updateQueueStatus(Long id, Integer queueStatus) {
+        log.error("调用queue-service失败，无法更新排队状态，排队ID: {}, 状态: {}", id, queueStatus);
+        return Result.error("排队服务暂时不可用");
+    }
 }

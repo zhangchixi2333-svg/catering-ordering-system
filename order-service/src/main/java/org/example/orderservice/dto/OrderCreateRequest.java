@@ -53,7 +53,7 @@ public class OrderCreateRequest {
     @NotNull(message = "店铺ID不能为空")
     private Long shopId;
 
-    @Schema(description = "桌台ID（堂食时必填，外带/外卖可为null）", example = "5")
+    @Schema(description = "桌台ID（堂食时必填，外带/外卖可为null；服务端会根据此ID从 table_info 表查询并填充 tableNumber）", example = "5")
     private Long tableId;
 
     @Schema(description = "用户ID（当前登录用户）", example = "1001")
