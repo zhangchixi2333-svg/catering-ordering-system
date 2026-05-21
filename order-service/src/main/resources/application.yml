@@ -46,7 +46,8 @@ eureka:
     # 从Eureka获取服务
     fetch-registry: true
   instance:
-    prefer-ip-address: true
+    prefer-ip-address: false  # 开发环境使用localhost，避免IP地址无法访问
+    hostname: localhost       # 强制使用localhost作为主机名
     instance-id: ${spring.application.name}:${server.port}
 
 # MyBatis Plus配置

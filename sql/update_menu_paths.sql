@@ -17,6 +17,9 @@ UPDATE sys_menu SET path = '/orders' WHERE id IN (8, 9);       -- 我的订单�
 UPDATE sys_menu SET path = '/shops' WHERE id IN (10, 11);      -- 店铺列表、店铺统计
 UPDATE sys_menu SET path = '/settings' WHERE id = 14;          -- 系统设置
 
+-- 更新支付订单路径
+UPDATE sys_menu SET path = '/payment', component = 'PaymentView.vue' WHERE id = 10 AND menu_code = 'order:payment';
+
 -- 3. 设置 visible 字段
 UPDATE sys_menu SET visible = 1 WHERE id IN (1, 2, 3, 4, 5);   -- 顶级菜单全部可见
 UPDATE sys_menu SET visible = 1 WHERE id IN (6, 7, 8, 9, 10, 11, 14);  -- 大部分二级菜单可见

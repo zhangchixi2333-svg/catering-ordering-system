@@ -36,6 +36,26 @@ const routes = [
         component: () => import('../views/OrderView.vue')
       },
       {
+        path: 'my-orders',
+        name: 'MyOrders',
+        component: () => import('../views/MyOrdersView.vue')
+      },
+      {
+        path: 'payment-orders',
+        redirect: '/payment'
+      },
+      {
+        path: 'payment',
+        name: 'Payment',
+        component: () => import('../views/PaymentView.vue')
+      },
+      {
+        path: 'table-management',
+        name: 'TableManagement',
+        component: () => import('../views/TableManagementView.vue'),
+        meta: { roles: ['STAFF', 'MANAGER', 'ADMIN'] }
+      },
+      {
         path: 'call-number',
         name: 'CallNumber',
         component: () => import('../views/CallNumberView.vue'),

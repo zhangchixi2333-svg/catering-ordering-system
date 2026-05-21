@@ -110,14 +110,16 @@ export const useUserStore = defineStore('user', () => {
         { name: '首页', path: '/dashboard', icon: '🏠' },
         { name: '在线点餐', path: '/ordering', icon: '🍽️' },
         { name: '取号排队', path: '/queue', icon: '🎫' },
-        { name: '我的订单', path: '/orders', icon: '📦' }
+        { name: '我的订单', path: '/my-orders', icon: '📦' },
+        { name: '支付订单', path: '/payment', icon: '💳' }
       ],
       [ROLES.STAFF]: [
         { name: '首页', path: '/dashboard', icon: '🏠' },
         { name: '在线点餐', path: '/ordering', icon: '🍽️' },
         { name: '取号排队', path: '/queue', icon: '🎫' },
         { name: '叫号管理', path: '/call-number', icon: '🔔' },
-        { name: '订单管理', path: '/orders', icon: '📦' }
+        { name: '订单管理', path: '/orders', icon: '📦' },
+        { name: '桌台管理', path: '/table-management', icon: '🪑' }
       ],
       [ROLES.MANAGER]: [
         { name: '首页', path: '/dashboard', icon: '🏠' },
@@ -125,6 +127,7 @@ export const useUserStore = defineStore('user', () => {
         { name: '取号排队', path: '/queue', icon: '🎫' },
         { name: '叫号管理', path: '/call-number', icon: '🔔' },
         { name: '订单管理', path: '/orders', icon: '📦' },
+        { name: '桌台管理', path: '/table-management', icon: '🪑' },
         { name: '店铺管理', path: '/shops', icon: '🏪' }
       ],
       [ROLES.ADMIN]: [
@@ -133,6 +136,7 @@ export const useUserStore = defineStore('user', () => {
         { name: '取号排队', path: '/queue', icon: '🎫' },
         { name: '叫号管理', path: '/call-number', icon: '🔔' },
         { name: '订单管理', path: '/orders', icon: '📦' },
+        { name: '桌台管理', path: '/table-management', icon: '🪑' },
         { name: '店铺管理', path: '/shops', icon: '🏪' },
         { name: '系统设置', path: '/settings', icon: '⚙️' }
       ]

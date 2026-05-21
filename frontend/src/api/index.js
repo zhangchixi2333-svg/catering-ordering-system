@@ -112,9 +112,16 @@ export const queueApi = {
   takeNumber(data) {
     return request.post('/queue', data)
   },
-  // 获取排队列表
+  // 获取排队列表（所有）
   getList() {
     return request.get('/queue/list')
+  },
+  // 根据用户ID获取排队列表
+  getByUser(userId, shopId = null) {
+    if (shopId) {
+      return request.get(`/queue/user/${userId}`, { params: { shopId } })
+    }
+    return request.get(`/queue/user/${userId}`)
   },
   // 根据ID获取排队
   getById(id) {
@@ -183,6 +190,54 @@ export const orderApi = {
   // 取消订单
   cancel(id, reason) {
     return request.put(`/order/${id}/cancel`, null, { params: { cancelReason: reason } })
+  }
+}
+
+// ==================== Payment API ====================
+export const paymentApi = {
+  // 创建支付订单（只需要订单编号）
+  create(data) {
+    return request.post('/payment', data)
+  },
+  // 获取支付订单列表
+  getList() {
+    return request.get('/payment/list')
+  },
+  // 根据ID获取支付订单
+  getById(id) {
+    return request.get(`/payment/${id}`)
+  },
+  // 根据支付单号获取支付订单
+  getByNo(paymentNo) {
+    return request.get(`/payment/no/${paymentNo}`)
+  },
+  // 根据订单编号获取支付订单
+  getByOrderNo(orderNo) {
+    return request.get(`/payment/order/${orderNo}`)
+  },
+  // 根据店铺获取支付订单
+  getByShop(shopId) {
+    return request.get(`/payment/shop/${shopId}`)
+  },
+  // 根据用户获取支付订单
+  getByUser(userId) {
+    return request.get(`/payment/user/${userId}`)
+  },
+  // 根据状态获取支付订单
+  getByStatus(status) {
+    return request.get(`/payment/status/${status}`)
+  },
+  // 更新支付订单
+  update(id, data) {
+    return request.put(`/payment/${id}`, data)
+  },
+  // 更新支付状态
+  updateStatus(id, status) {
+    return request.put(`/payment/${id}/status`, null, { params: { paymentStatus: status } })
+  },
+  // 删除支付订单
+  delete(id) {
+    return request.delete(`/payment/${id}`)
   }
 }
 

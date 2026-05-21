@@ -94,6 +94,39 @@ public class QueueNumberController {
     }
 
     @Operation(
+        summary = "根据用户ID获取排队列表",
+        description = "<font color='green'>💡 使用场景：</font><br/>" +
+                "- 前端'我的排队'页面展示当前用户的排队记录<br/>" +
+                "- 用户可以查看自己的所有排队历史<br/>" +
+                "- 支持按店铺筛选（可选）"
+    )
+    @GetMapping("/user/{userId}")
+    public Result<List<QueueNumber>> getQueuesByUser(
+            @Parameter(description = "用户ID", example = "1", required = true)
+            @PathVariable("userId") Long userId,
+            @Parameter(description = "店铺ID（可选）", example = "1")
+            @RequestParam(value = "shopId", required = false) Long shopId) {
+        List<QueueNumber> queues;
+        if (shopId != null) {
+            // 按用户和店铺查询
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<QueueNumber> wrapper = 
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            wrapper.eq(QueueNumber::getUserId, userId)
+                   .eq(QueueNumber::getShopId, shopId)
+                   .orderByDesc(QueueNumber::getCreatedAt);
+            queues = queueNumberService.list(wrapper);
+        } else {
+            // 只按用户查询
+            com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<QueueNumber> wrapper = 
+                new com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper<>();
+            wrapper.eq(QueueNumber::getUserId, userId)
+                   .orderByDesc(QueueNumber::getCreatedAt);
+            queues = queueNumberService.list(wrapper);
+        }
+        return Result.success(queues);
+    }
+
+    @Operation(
         summary = "排队取号（验证店铺 + Redis队列 + WebSocket推送）",
         description = "<font color='red'>【核心功能 - 已集成Redis】</font><br/>" +
                 "用户在线取号，系统会自动验证店铺信息、加入Redis排序集合并推送WebSocket通知<br/><br/>" +

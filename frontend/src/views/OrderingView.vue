@@ -164,7 +164,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
-import { shopApi } from '../api'
+import { shopApi, queueApi } from '../api'
 import axios from 'axios'
 
 const router = useRouter()
@@ -345,15 +345,26 @@ const submitOrder = async () => {
       userId: userStore.user.id,
       orderType: 1, // 1-堂食，2-外带，3-外卖
       tableId: null, // 堂食时需要选择桌台
-      queueId: queueId.value, // 关联排队号（如果有）
       remark: '', // 订单备注
       items: orderItems,
       totalAmount: totalAmount,
       itemCount: itemCount
     }
     
+    // 如果有关联排队，先获取排队号码再提交订单
     if (queueId.value) {
-      console.log('订单关联排队ID:', queueId.value)
+      try {
+        const queueResponse = await queueApi.getById(queueId.value);
+        if (queueResponse.code === 200 && queueResponse.data) {
+          orderData.queueNumber = queueResponse.data.queueNo; // 使用排队号码而不是排队ID
+          console.log('订单关联排队号码:', queueResponse.data.queueNo);
+        } else {
+          throw new Error('获取排队信息失败');
+        }
+      } catch (error) {
+        console.error('获取排队号码失败:', error);
+        throw new Error('排队信息获取失败，请稍后重试');
+      }
     }
     
     console.log('提交订单数据:', orderData)
@@ -370,14 +381,13 @@ const submitOrder = async () => {
     )
     
     if (response.data.code === 200) {
-      alert('✅ 订单提交成功！订单号：' + (response.data.data?.orderNo || '未知'))
       
       // 清空购物车
       cart.value = {}
       closeCartDialog()
       
-      // 跳转到订单页面
-      router.push('/orders')
+      // 跳转到我的订单页面（普通用户）
+      router.push('/my-orders')
     } else {
       throw new Error(response.data.message || '订单创建失败')
     }

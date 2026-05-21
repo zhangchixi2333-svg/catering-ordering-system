@@ -114,4 +114,93 @@ public class TableInfoController {
         boolean success = tableInfoService.updateTableStatus(id, request.getTableStatus());
         return success ? Result.success(true) : Result.error("更新状态失败");
     }
+
+    @Operation(
+        summary = "开始清洁桌面（店员操作）",
+        description = "<font color='green'>📋 业务流程：</font><br/>" +
+                "1. 验证桌台是否存在<br/>" +
+                "2. 验证桌台当前状态是否为'已占用'（状态码1）<br/>" +
+                "3. 将桌台状态更新为'清洁中'（状态码2）<br/>" +
+                "4. 记录清洁开始时间<br/><br/>" +
+                "<font color='blue'>💡 使用场景：</font><br/>" +
+                "- 客户离店后，店员点击'清洁桌面'按钮<br/>" +
+                "- 桌台从'已占用'变为'清洁中'<br/>" +
+                "- 其他店员可以看到该桌台正在清洁中<br/><br/>" +
+                "<font color='orange'>⚠️ 注意事项：</font><br/>" +
+                "- 只有'已占用'状态的桌台才能开始清洁<br/>" +
+                "- 清洁过程中桌台不可分配给新订单"
+    )
+    @PutMapping("/{id}/start-cleaning")
+    public Result<Boolean> startCleaning(
+            @Parameter(description = "桌台ID", example = "1", required = true)
+            @PathVariable("id") Long id) {
+        // 1. 查询桌台
+        TableInfo table = tableInfoService.getById(id);
+        if (table == null) {
+            return Result.error("桌台不存在");
+        }
+        
+        // 2. 验证当前状态
+        if (table.getTableStatus() == null || table.getTableStatus() != 1) {
+            return Result.error("只有'已占用'状态的桌台才能开始清洁。当前状态: " + getTableStatusText(table.getTableStatus()));
+        }
+        
+        // 3. 更新状态为清洁中
+        boolean success = tableInfoService.updateTableStatus(id, 2); // 2-清洁中
+        if (success) {
+            System.out.println("✅ 桌台开始清洁 - 桌台ID: " + id + ", 桌台编号: " + table.getTableNumber());
+        }
+        return success ? Result.success(true) : Result.error("开始清洁失败");
+    }
+
+    @Operation(
+        summary = "完成清洁（店员操作）",
+        description = "<font color='green'>📋 业务流程：</font><br/>" +
+                "1. 验证桌台是否存在<br/>" +
+                "2. 验证桌台当前状态是否为'清洁中'（状态码2）<br/>" +
+                "3. 将桌台状态更新为'空闲'（状态码0）<br/>" +
+                "4. 清除清洁标记<br/><br/>" +
+                "<font color='blue'>💡 使用场景：</font><br/>" +
+                "- 店员完成桌台清洁后，点击'清洁完成'按钮<br/>" +
+                "- 桌台从'清洁中'变为'空闲'<br/>" +
+                "- 桌台可以重新分配给新订单<br/><br/>" +
+                "<font color='orange'>⚠️ 注意事项：</font><br/>" +
+                "- 只有'清洁中'状态的桌台才能完成清洁<br/>" +
+                "- 完成后桌台立即可用"
+    )
+    @PutMapping("/{id}/complete-cleaning")
+    public Result<Boolean> completeCleaning(
+            @Parameter(description = "桌台ID", example = "1", required = true)
+            @PathVariable("id") Long id) {
+        // 1. 查询桌台
+        TableInfo table = tableInfoService.getById(id);
+        if (table == null) {
+            return Result.error("桌台不存在");
+        }
+        
+        // 2. 验证当前状态
+        if (table.getTableStatus() == null || table.getTableStatus() != 2) {
+            return Result.error("只有'清洁中'状态的桌台才能完成清洁。当前状态: " + getTableStatusText(table.getTableStatus()));
+        }
+        
+        // 3. 更新状态为空闲
+        boolean success = tableInfoService.updateTableStatus(id, 0); // 0-空闲
+        if (success) {
+            System.out.println("✅ 桌台清洁完成 - 桌台ID: " + id + ", 桌台编号: " + table.getTableNumber() + ", 状态: 空闲");
+        }
+        return success ? Result.success(true) : Result.error("完成清洁失败");
+    }
+
+    /**
+     * 获取桌台状态文本
+     */
+    private String getTableStatusText(Integer status) {
+        if (status == null) return "未知";
+        switch (status) {
+            case 0: return "空闲";
+            case 1: return "已占用";
+            case 2: return "清洁中";
+            default: return "未知(" + status + ")";
+        }
+    }
 }

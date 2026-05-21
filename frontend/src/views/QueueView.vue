@@ -232,17 +232,27 @@ const handleTakeNumber = async () => {
   }
 }
 
-// 加载排队列表
+// 加载排队列表 - 只显示当前用户的排队
 const loadQueues = async () => {
   try {
-    const res = await queueApi.getList()
+    // 获取当前登录用户ID
+    const userId = userStore.user?.id
+    if (!userId) {
+      console.warn('未获取到用户ID，无法加载排队列表')
+      queues.value = []
+      return
+    }
+    
+    // 调用按用户查询的API
+    const res = await queueApi.getByUser(userId)
     queues.value = res.data || []
     
     // 检查每个已叫号的排队是否有订单
     for (const queue of queues.value) {
       if (queue.queueStatus === 1) {
         try {
-          const orderRes = await orderApi.getByQueue(queue.id)
+          // 根据排队号码查询关联的订单
+          const orderRes = await orderApi.getByQueue(queue.queueNo)
           queueOrderStatus.value[queue.id] = orderRes.data && orderRes.data.length > 0
         } catch (error) {
           console.error(`查询排队${queue.id}的订单失败:`, error)
@@ -363,14 +373,58 @@ const getStatusBadgeClass = (status) => {
   return classes[status] || ''
 }
 
-// 检查排队是否已关联订单
+// 检查排队是否已关联订单（同步版本，依赖预加载的数据）
 const hasOrder = (queueId) => {
   return queueOrderStatus.value[queueId] || false
 }
 
+// 异步检查并更新排队订单状态
+const checkQueueOrderStatus = async (queueId) => {
+  try {
+    // 首先通过排队ID获取排队信息，以获取排队号码
+    const queueRes = await queueApi.getById(queueId);
+    if (queueRes.code !== 200 || !queueRes.data) {
+      console.error('获取排队信息失败:', queueId);
+      queueOrderStatus.value[queueId] = false;
+      return false;
+    }
+    
+    const queueNumber = queueRes.data.queueNo;
+    if (!queueNumber) {
+      console.error('排队号码为空:', queueId);
+      queueOrderStatus.value[queueId] = false;
+      return false;
+    }
+    
+    // 根据排队号码查询关联的订单
+    const orderRes = await orderApi.getByQueue(queueNumber);
+    if (orderRes.code === 200 && orderRes.data && Array.isArray(orderRes.data)) {
+      const hasExistingOrder = orderRes.data.length > 0;
+      // 更新缓存状态
+      queueOrderStatus.value[queueId] = hasExistingOrder;
+      return hasExistingOrder;
+    }
+    
+    queueOrderStatus.value[queueId] = false;
+    return false;
+  } catch (error) {
+    console.error('检查订单关联失败:', error);
+    queueOrderStatus.value[queueId] = false;
+    return false;
+  }
+}
+
 // 前往点菜页面
-const goToOrdering = (queue) => {
+const goToOrdering = async (queue) => {
   console.log('前往点菜 - 排队ID:', queue.id)
+  
+  // 在前往点菜前再次检查是否已有关联订单，防止并发问题
+  const hasExistingOrder = await checkQueueOrderStatus(queue.id)
+  if (hasExistingOrder) {
+    alert('该排队号码已关联订单，不能重复下单')
+    return
+  }
+  
   router.push({
     path: '/ordering',
     query: { queueId: queue.id }

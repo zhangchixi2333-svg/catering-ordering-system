@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.orderservice.common.Result;
 import org.example.orderservice.dto.OrderCreateRequest;
 import org.example.orderservice.dto.OrderItemRequest;
@@ -33,6 +34,7 @@ import java.util.List;
 /**
  * 订单管理控制器
  */
+@Slf4j
 @Tag(name = "订单管理", description = "订单的增删改查和状态管理")
 @RestController
 @RequestMapping("/api/order")
@@ -71,10 +73,25 @@ public class OrdersController {
     public Result<Orders> getOrderByNo(
             @Parameter(description = "订单编号", example = "ORD2026051700001", required = true)
             @PathVariable("orderNo") String orderNo) {
+        log.info("\n========== 收到订单查询请求 ==========");
+        log.info("【接口路径】GET /api/order/no/{}", orderNo);
+        log.info("【请求时间】{}", java.time.LocalDateTime.now());
+        log.info("【订单编号】{}", orderNo);
+        
         Orders order = ordersService.getByOrderNo(orderNo);
+        
         if (order == null) {
+            log.error("❌ 订单不存在 - 订单号: {}", orderNo);
+            log.error("==========================================\n");
             return Result.error("订单不存在");
         }
+        
+        log.info("✅ 订单查询成功");
+        log.info("  - 订单ID: {}", order.getId());
+        log.info("  - 订单状态: {}", getOrderByStatusText(order.getOrderStatus()));
+        log.info("  - 支付状态: {}", order.getPaymentStatus() != null ? (order.getPaymentStatus() == 0 ? "未支付" : "已支付") : "未知");
+        log.info("  - 订单金额: ¥{}", order.getTotalAmount());
+        log.info("==========================================\n");
         return Result.success(order);
     }
 
@@ -316,7 +333,24 @@ public class OrdersController {
                             getQueueStatusText(queueInfo.getQueueStatus()));
                 }
                 
+                // 验证该排队号码是否已有关联的订单
+                System.out.println("验证该排队号码是否已有关联订单...");
+                List<Orders> existingOrders = ordersService.lambdaQuery()
+                        .eq(Orders::getQueueNumber, request.getQueueNumber())
+                        .orderByDesc(Orders::getCreatedAt)
+                        .list();
+                
+                if (existingOrders != null && !existingOrders.isEmpty()) {
+                    System.err.println("❌ 该排队号码已存在关联订单，不允许重复下单 - 排队号码: " + request.getQueueNumber());
+                    System.err.println("已关联的订单数量: " + existingOrders.size());
+                    for (Orders order : existingOrders) {
+                        System.err.println("  - 订单号: " + order.getOrderNo() + ", 状态: " + getOrderByStatusText(order.getOrderStatus()));
+                    }
+                    return Result.error("该排队号码已存在关联订单，不能重复下单");
+                }
+                
                 System.out.println("✅ 排队验证通过 - 排队号码: " + request.getQueueNumber() + ", 状态: 已叫号");
+                System.out.println("✅ 该排队号码未关联订单，允许下单");
                 System.out.println("========== Queue Service 调用结束 ==========\n");
             } catch (Exception e) {
                 System.err.println("\n========== Queue Service 调用异常 ==========");

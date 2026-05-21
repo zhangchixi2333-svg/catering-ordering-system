@@ -65,5 +65,28 @@ logging:
     root: INFO
     org.example.paymentservice: DEBUG
     org.springframework.web.servlet.resource.ResourceHttpRequestHandler: WARN
+    # Feign详细日志配置
+    org.example.paymentservice.feign.OrderFeignClient: DEBUG  # Feign客户端日志
+    feign.Logger: DEBUG  # Feign框架日志
   pattern:
     console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+
+# Feign配置
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 2000  # 连接超时时间（毫秒）
+        readTimeout: 5000     # 读取超时时间（毫秒）
+      order-service:
+        connectTimeout: 3000  # order-service连接超时时间（毫秒）
+        readTimeout: 10000    # order-service读取超时时间（毫秒）
+  compression:
+    request:
+      enabled: true
+    response:
+      enabled: true
+  # 启用Feign详细日志
+  logging:
+    level:
+      org.example.paymentservice.feign.OrderFeignClient: FULL
