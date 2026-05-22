@@ -416,7 +416,12 @@ const checkQueueOrderStatus = async (queueId) => {
 
 // 前往点菜页面
 const goToOrdering = async (queue) => {
-  console.log('前往点菜 - 排队ID:', queue.id)
+  console.log('🍽️ [前往点菜] 开始跳转到点菜页面', {
+    queueId: queue.id,
+    queueNo: queue.queueNo,
+    shopId: queue.shopId,
+    queueStatus: queue.queueStatus
+  })
   
   // 在前往点菜前再次检查是否已有关联订单，防止并发问题
   const hasExistingOrder = await checkQueueOrderStatus(queue.id)
@@ -425,9 +430,17 @@ const goToOrdering = async (queue) => {
     return
   }
   
+  console.log('🍽️ [前往点菜] 跳转到点菜页面，传递参数:', {
+    queueId: queue.id,
+    shopId: queue.shopId
+  })
+  
   router.push({
     path: '/ordering',
-    query: { queueId: queue.id }
+    query: { 
+      queueId: queue.id,
+      shopId: queue.shopId
+    }
   })
 }
 

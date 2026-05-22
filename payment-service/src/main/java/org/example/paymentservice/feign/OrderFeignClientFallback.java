@@ -47,12 +47,12 @@ public class OrderFeignClientFallback implements OrderFeignClient {
     }
 
     @Override
-    public Result<Boolean> updateOrderStatus(Long id, Integer orderStatus) {
+    public Result<Boolean> updateOrderStatus(Long id, Integer orderStatus, Integer paymentStatus, Integer paymentMethod) {
         log.error("========== Feign调用order-service失败 ==========");
         log.error("【调用方法】updateOrderStatus");
-        log.error("【请求参数】订单ID: {}, 订单状态: {}", id, orderStatus);
+        log.error("【请求参数】订单ID: {}, 订单状态: {}, 支付状态: {}, 支付方式: {}", id, orderStatus, paymentStatus, paymentMethod);
         log.error("【目标服务】order-service (通过Eureka发现)");
-        log.error("【预期路径】PUT /api/order/{}/status?orderStatus={}", id, orderStatus);
+        log.error("【预期路径】PUT /api/order/{}/status?orderStatus={}&paymentStatus={}&paymentMethod={}", id, orderStatus, paymentStatus, paymentMethod);
         log.error("");
         log.error("【可能原因分析】");
         log.error("  1. order-service未启动 - 请检查进程是否运行在8083端口");

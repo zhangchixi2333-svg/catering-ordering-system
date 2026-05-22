@@ -5,12 +5,13 @@
     <!-- 店铺选择 -->
     <div class="shop-selector">
       <label>选择店铺：</label>
-      <select v-model="selectedShopId" @change="loadMenuData">
+      <select v-model="selectedShopId" @change="loadMenuData" :disabled="isShopLocked">
         <option value="">请选择店铺</option>
         <option v-for="shop in shops" :key="shop.id" :value="shop.id">
           {{ shop.shopName }}
         </option>
       </select>
+      <span v-if="isShopLocked" class="shop-locked-tip">🔒 店铺已锁定（与排队店铺一致）</span>
     </div>
     
     <div v-if="selectedShopId" class="ordering-container">
@@ -173,6 +174,7 @@ const route = useRoute()
 // 数据
 const shops = ref([])
 const selectedShopId = ref('')
+const isShopLocked = ref(false) // 店铺是否被锁定（与排队店铺一致）
 const categories = ref([])
 const menuItems = ref([])
 const selectedCategoryId = ref('')
@@ -192,9 +194,49 @@ const loadShops = async () => {
     const res = await shopApi.getList()
     shops.value = res.data || []
     
-    // 自动选择第一个店铺
-    if (shops.value.length > 0) {
-      selectedShopId.value = shops.value[0].id
+    // 如果有排队ID，先获取排队信息，锁定店铺
+    if (queueId.value) {
+      try {
+        console.log('获取排队信息，锁定店铺...')
+        const queueRes = await queueApi.getById(queueId.value)
+        if (queueRes.code === 200 && queueRes.data) {
+          const queueShopId = queueRes.data.shopId
+          console.log('排队店铺ID:', queueShopId)
+          
+          // 检查店铺是否存在
+          const shopExists = shops.value.some(s => s.id === queueShopId)
+          if (shopExists) {
+            selectedShopId.value = queueShopId
+            isShopLocked.value = true
+            console.log('店铺已锁定:', queueShopId)
+          } else {
+            console.warn('排队店铺不存在，使用默认店铺')
+            if (shops.value.length > 0) {
+              selectedShopId.value = shops.value[0].id
+            }
+          }
+        } else {
+          console.warn('获取排队信息失败，使用默认店铺')
+          if (shops.value.length > 0) {
+            selectedShopId.value = shops.value[0].id
+          }
+        }
+      } catch (error) {
+        console.error('获取排队信息失败:', error)
+        // 出错时使用默认店铺
+        if (shops.value.length > 0) {
+          selectedShopId.value = shops.value[0].id
+        }
+      }
+    } else {
+      // 没有排队ID，自动选择第一个店铺
+      if (shops.value.length > 0) {
+        selectedShopId.value = shops.value[0].id
+      }
+    }
+    
+    // 加载菜单数据
+    if (selectedShopId.value) {
       loadMenuData()
     }
   } catch (error) {
@@ -341,7 +383,7 @@ const submitOrder = async () => {
     
     // 构建订单数据
     const orderData = {
-      shopId: selectedShopId.value,
+      shopId: isShopLocked.value ? selectedShopId.value : selectedShopId.value, // 使用锁定的店铺ID或当前选择的店铺ID
       userId: userStore.user.id,
       orderType: 1, // 1-堂食，2-外带，3-外卖
       tableId: null, // 堂食时需要选择桌台
@@ -350,6 +392,12 @@ const submitOrder = async () => {
       totalAmount: totalAmount,
       itemCount: itemCount
     }
+    
+    console.log('🔒 [订单] 店铺锁定状态:', {
+      isShopLocked: isShopLocked.value,
+      selectedShopId: selectedShopId.value,
+      queueId: queueId.value
+    })
     
     // 如果有关联排队，先获取排队号码再提交订单
     if (queueId.value) {
@@ -444,6 +492,23 @@ onMounted(() => {
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   font-size: 14px;
+}
+
+.shop-selector select:disabled {
+  background-color: #f7fafc;
+  cursor: not-allowed;
+  color: #4a5568;
+}
+
+.shop-locked-tip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: #fff3cd;
+  color: #856404;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 /* 点餐容器 */

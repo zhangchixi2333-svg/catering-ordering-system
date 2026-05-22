@@ -627,14 +627,64 @@ public class OrdersController {
             @Parameter(description = "订单ID", example = "1", required = true)
             @PathVariable("id") Long id,
             @Parameter(description = "订单状态：0-待支付，1-待接单，2-制作中，3-待取餐，4-已完成，5-已取消", example = "2", required = true)
-            @RequestParam("orderStatus") Integer orderStatus) {
+            @RequestParam("orderStatus") Integer orderStatus,
+            @Parameter(description = "支付状态：0-未支付，1-已支付", example = "1")
+            @RequestParam(value = "paymentStatus", required = false) Integer paymentStatus,
+            @Parameter(description = "支付方式：1-微信，2-支付宝，3-现金，4-会员卡", example = "1")
+            @RequestParam(value = "paymentMethod", required = false) Integer paymentMethod) {
         Orders order = ordersService.getById(id);
         if (order == null) {
             return Result.error("订单不存在");
         }
+        
+        log.info("\n========== 开始更新订单状态 ==========");
+        log.info("订单ID: {}", id);
+        log.info("原订单状态: {}", getOrderByStatusText(order.getOrderStatus()));
+        log.info("新订单状态: {}", getOrderByStatusText(orderStatus));
+        
         order.setOrderStatus(orderStatus);
+        
+        // 如果提供了支付状态，更新支付状态
+        if (paymentStatus != null) {
+            log.info("原支付状态: {}", order.getPaymentStatus() != null ? (order.getPaymentStatus() == 0 ? "未支付" : "已支付") : "未知");
+            log.info("新支付状态: {}", paymentStatus == 0 ? "未支付" : "已支付");
+            order.setPaymentStatus(paymentStatus);
+            
+            // 如果支付状态为已支付，设置支付时间
+            if (paymentStatus == 1) {
+                order.setPaymentTime(java.time.LocalDateTime.now());
+                log.info("支付时间: {}", order.getPaymentTime());
+            }
+        }
+        
+        // 如果提供了支付方式，更新支付方式
+        if (paymentMethod != null) {
+            log.info("支付方式: {}", getPaymentMethodText(paymentMethod));
+            order.setPaymentMethod(paymentMethod);
+        }
+        
         boolean success = ordersService.updateById(order);
+        
+        if (success) {
+            log.info("✅ 订单状态更新成功");
+            log.info("==========================================\n");
+        } else {
+            log.error("❌ 订单状态更新失败");
+            log.error("==========================================\n");
+        }
+        
         return success ? Result.success(true) : Result.error("更新状态失败");
+    }
+    
+    private String getPaymentMethodText(Integer paymentMethod) {
+        if (paymentMethod == null) return "未知";
+        switch (paymentMethod) {
+            case 1: return "微信";
+            case 2: return "支付宝";
+            case 3: return "现金";
+            case 4: return "会员卡";
+            default: return "未知";
+        }
     }
 
     @Operation(summary = "取消订单")

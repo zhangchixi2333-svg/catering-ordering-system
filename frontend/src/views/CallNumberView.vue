@@ -61,7 +61,17 @@
           </div>
           
           <div class="actions">
-            <button @click="handleCall(item)" class="btn-call" :disabled="calling">
+            <button 
+              @click="handleCall(item)" 
+              class="btn-call" 
+              :disabled="calling"
+              @click.capture="() => console.log('🖱️ [按钮点击] 叫号按钮被点击', {
+                item: item,
+                queueNo: item.queueNo,
+                queueId: item.id,
+                disabled: calling
+              })"
+            >
               {{ calling && callingId === item.id ? '叫号中...' : '📢 叫号' }}
             </button>
           </div>
@@ -116,7 +126,17 @@
           </div>
           
           <div class="actions">
-            <button @click="handleComplete(item)" class="btn-complete" :disabled="completing">
+            <button 
+              @click="handleComplete(item)" 
+              class="btn-complete" 
+              :disabled="completing"
+              @click.capture="() => console.log('🖱️ [按钮点击] 完成按钮被点击', {
+                item: item,
+                queueNo: item.queueNo,
+                queueId: item.id,
+                disabled: completing
+              })"
+            >
               {{ completing && completingId === item.id ? '处理中...' : '✔️ 完成' }}
             </button>
           </div>
@@ -180,30 +200,57 @@ const refreshAll = async () => {
 const loadWaitingQueue = async () => {
   if (!shopId.value) return
   
+  console.log('🔄 [加载等待队列] 开始加载等待队列', {
+    shopId: shopId.value
+  })
+  
   try {
     // 获取 Redis 等待队列 ID 列表
+    console.log('🔄 [加载等待队列] 调用Redis API获取等待队列ID列表')
     const res = await queueApi.getRealTimeWaiting(shopId.value)
     waitingQueue.value = res.data
     
+    console.log('🔄 [加载等待队列] Redis响应:', {
+      waitingCount: res.data.waitingCount,
+      queueIds: res.data.queueIds,
+      queueIdsCount: res.data.queueIds?.length || 0
+    })
+    
     // 获取排队详细信息
     if (res.data.queueIds && res.data.queueIds.length > 0) {
+      console.log('🔄 [加载等待队列] 开始获取排队详细信息')
       const details = []
       for (const queueId of res.data.queueIds) {
         try {
+          console.log(`🔄 [加载等待队列] 获取排队 ${queueId} 详情`)
           const detailRes = await queueApi.getById(queueId)
           if (detailRes.data) {
+            console.log(`🔄 [加载等待队列] 排队 ${queueId} 详情:`, {
+              queueNo: detailRes.data.queueNo,
+              queueStatus: detailRes.data.queueStatus,
+              statusName: getQueueStatusName(detailRes.data.queueStatus)
+            })
             details.push(detailRes.data)
           }
         } catch (e) {
-          console.error(`获取排队 ${queueId} 详情失败:`, e)
+          console.error(`🔄 [加载等待队列] 获取排队 ${queueId} 详情失败:`, e)
         }
       }
       waitingList.value = details
+      console.log('🔄 [加载等待队列] 等待队列加载完成', {
+        totalDetails: details.length,
+        details: details.map(d => ({
+          queueNo: d.queueNo,
+          queueStatus: d.queueStatus,
+          statusName: getQueueStatusName(d.queueStatus)
+        }))
+      })
     } else {
       waitingList.value = []
+      console.log('🔄 [加载等待队列] 没有等待中的排队')
     }
   } catch (error) {
-    console.error('加载等待队列失败:', error)
+    console.error('🔄 [加载等待队列] 加载等待队列失败:', error)
   }
 }
 
@@ -240,45 +287,131 @@ const loadCallingQueue = async () => {
 
 // 叫号
 const handleCall = async (item) => {
-  if (!confirm(`确定要叫号：${item.queueNo}（${item.partySize}人）吗？`)) return
+  console.log('🔔 [叫号] 开始叫号流程', {
+    item: item,
+    queueNo: item.queueNo,
+    partySize: item.partySize,
+    queueId: item.id,
+    queueStatus: item.queueStatus
+  })
   
+  // 检查排队状态
+  if (item.queueStatus !== 0) {
+    console.warn('🔔 [叫号] 排队状态不是等待中，无法叫号', {
+      currentStatus: item.queueStatus,
+      statusName: getQueueStatusName(item.queueStatus)
+    })
+    alert(`该排队状态不是等待中，当前状态：${getQueueStatusName(item.queueStatus)}`)
+    return
+  }
+  
+  console.log('🔔 [叫号] 直接执行叫号操作（无需确认）')
   calling.value = true
   callingId.value = item.id
   
+  console.log('🔔 [叫号] 设置加载状态', {
+    calling: calling.value,
+    callingId: callingId.value
+  })
+  
   try {
-    await queueApi.callNumber(item.id)
+    console.log('🔔 [叫号] 调用API', {
+      queueId: item.id,
+      endpoint: `/queue/${item.id}/call`
+    })
+    
+    const result = await queueApi.callNumber(item.id)
+    
+    console.log('🔔 [叫号] API调用成功', {
+      result: result,
+      queueNo: item.queueNo
+    })
+    
     alert('✅ 叫号成功！')
     
+    console.log('🔔 [叫号] 开始刷新数据')
     // 刷新数据
     await refreshAll()
+    
+    console.log('🔔 [叫号] 数据刷新完成')
   } catch (error) {
-    console.error('叫号失败:', error)
+    console.error('🔔 [叫号] API调用失败', {
+      error: error,
+      errorMessage: error.message,
+      errorResponse: error.response?.data,
+      errorStatus: error.response?.status
+    })
     alert(error.response?.data?.message || '叫号失败')
   } finally {
+    console.log('🔔 [叫号] 重置状态')
     calling.value = false
     callingId.value = null
+    console.log('🔔 [叫号] 叫号流程结束')
   }
+}
+
+// 获取排队状态名称
+const getQueueStatusName = (status) => {
+  const statusMap = {
+    0: '等待中',
+    1: '已叫号',
+    2: '已入座',
+    3: '已取消',
+    4: '已过号'
+  }
+  return statusMap[status] || '未知状态'
 }
 
 // 完成排队
 const handleComplete = async (item) => {
-  if (!confirm(`确定完成排队：${item.queueNo} 吗？`)) return
+  console.log('✅ [完成] 开始完成排队流程', {
+    item: item,
+    queueNo: item.queueNo,
+    queueId: item.id
+  })
   
+  console.log('✅ [完成] 直接执行完成操作（无需确认）')
   completing.value = true
   completingId.value = item.id
   
+  console.log('✅ [完成] 设置加载状态', {
+    completing: completing.value,
+    completingId: completingId.value
+  })
+  
   try {
-    await queueApi.complete(item.id)
+    console.log('✅ [完成] 调用API', {
+      queueId: item.id,
+      endpoint: `/queue/${item.id}/complete`
+    })
+    
+    const result = await queueApi.complete(item.id)
+    
+    console.log('✅ [完成] API调用成功', {
+      result: result,
+      queueNo: item.queueNo
+    })
+    
     alert('✅ 已完成')
     
+    console.log('✅ [完成] 开始刷新数据')
     // 刷新数据
     await refreshAll()
+    
+    console.log('✅ [完成] 数据刷新完成')
   } catch (error) {
-    console.error('完成失败:', error)
+    console.error('✅ [完成] API调用失败', {
+      error: error,
+      errorMessage: error.message,
+      errorResponse: error.response?.data,
+      errorStatus: error.response?.status
+    })
     alert(error.response?.data?.message || '完成失败')
   } finally {
+    console.log('✅ [完成] 重置状态')
     completing.value = false
     completingId.value = null
+    console.log('✅ [完成] 完成流程结束')
   }
 }
 

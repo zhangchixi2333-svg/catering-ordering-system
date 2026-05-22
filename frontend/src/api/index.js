@@ -8,10 +8,32 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   config => {
-    console.log('📤 发送请求:', config.method.toUpperCase(), config.url)
+    console.log('📤 [API请求] 发送请求:', {
+      method: config.method.toUpperCase(),
+      url: config.url,
+      baseURL: config.baseURL,
+      fullURL: `${config.baseURL}${config.url}`,
+      headers: config.headers,
+      data: config.data,
+      params: config.params
+    })
+    
+    // 添加认证token
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+      console.log('📤 [API请求] 添加认证Token:', {
+        tokenPrefix: token.substring(0, 20) + '...',
+        hasToken: true
+      })
+    } else {
+      console.warn('📤 [API请求] 警告: 没有找到Token')
+    }
+    
     return config
   },
   error => {
+    console.error('📤 [API请求] 请求配置错误:', error)
     return Promise.reject(error)
   }
 )
@@ -19,16 +41,40 @@ request.interceptors.request.use(
 // 响应拦截器
 request.interceptors.response.use(
   response => {
+    console.log('📥 [API响应] 收到响应:', {
+      status: response.status,
+      statusText: response.statusText,
+      url: response.config.url,
+      headers: response.headers
+    })
+    
     const res = response.data
+    console.log('📥 [API响应] 响应数据:', {
+      code: res.code,
+      message: res.message,
+      data: res.data
+    })
+    
     if (res.code !== 200) {
-      console.error('❌ 请求失败:', res.message)
+      console.error('❌ [API响应] 业务错误:', {
+        code: res.code,
+        message: res.message,
+        data: res.data
+      })
       alert(res.message || '请求失败')
       return Promise.reject(new Error(res.message))
     }
+    
+    console.log('✅ [API响应] 请求成功')
     return res
   },
   error => {
-    console.error('❌ 网络错误:', error.message)
+    console.error('❌ [API响应] 网络错误:', {
+      message: error.message,
+      config: error.config,
+      response: error.response?.data,
+      status: error.response?.status
+    })
     alert('网络错误，请稍后重试')
     return Promise.reject(error)
   }
@@ -137,10 +183,20 @@ export const queueApi = {
   },
   // 叫号
   callNumber(id) {
+    console.log('🔔 [QueueAPI] 调用叫号API:', {
+      queueId: id,
+      endpoint: `/queue/${id}/call`,
+      method: 'PUT'
+    })
     return request.put(`/queue/${id}/call`)
   },
   // 完成排队
   complete(id) {
+    console.log('✅ [QueueAPI] 调用完成排队API:', {
+      queueId: id,
+      endpoint: `/queue/${id}/complete`,
+      method: 'PUT'
+    })
     return request.put(`/queue/${id}/complete`)
   },
   // 取消排队

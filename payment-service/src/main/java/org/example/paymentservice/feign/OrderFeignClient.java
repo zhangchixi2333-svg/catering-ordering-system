@@ -23,15 +23,19 @@ public interface OrderFeignClient {
     Result<OrderInfoDTO> getOrderByOrderNo(@PathVariable("orderNo") String orderNo);
 
     /**
-     * 支付成功后更新订单状态为"待接单"
+     * 支付成功后更新订单状态为"待接单"并更新支付信息
      * @param id 订单ID
      * @param orderStatus 订单状态（固定传1-待接单）
+     * @param paymentStatus 支付状态（固定传1-已支付）
+     * @param paymentMethod 支付方式（1-微信，2-支付宝，3-现金，4-会员卡）
      * @return 更新结果
      */
     @PutMapping("/{id}/status")
     Result<Boolean> updateOrderStatus(
         @PathVariable("id") Long id,
-        @RequestParam("orderStatus") Integer orderStatus
+        @RequestParam("orderStatus") Integer orderStatus,
+        @RequestParam("paymentStatus") Integer paymentStatus,
+        @RequestParam("paymentMethod") Integer paymentMethod
     );
 
     /**

@@ -2,8 +2,8 @@ package org.example.queueservice.util;
 
 /**
  * 排队号码生成工具类
- * 排队号码格式：前缀 + 日期 + 3位序列号
- * 示例：A20260518001, B20260518002, V20260518001
+ * 排队号码格式：前缀 + 年月日时分秒 + 3位序列号
+ * 示例：A20260522143045001, B20260522143046002, V20260522143047001
  * 
  * 队列前缀说明：
  * - A: 普通桌（堂食）
@@ -14,21 +14,21 @@ package org.example.queueservice.util;
 public class QueueNoGenerator {
     
     /**
-     * 生成排队号码（包含日期）
+     * 生成排队号码（包含年月日时分秒）
      * @param prefix 队列前缀（A-普通桌，B-卡座，V-包厢，T-外带）
      * @param sequence 序列号
-     * @return 排队号码，格式：前缀 + 日期(yyyyMMdd) + 3位数字（如：A20260518001）
+     * @return 排队号码，格式：前缀 + 年月日时分秒(yyyyMMddHHmmss) + 3位数字（如：A20260522143045001）
      */
     public static String generate(String prefix, int sequence) {
         if (prefix == null || prefix.isEmpty()) {
             prefix = "A"; // 默认A队列
         }
         
-        // 获取当前日期
-        String dateStr = java.time.LocalDate.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd"));
+        // 获取当前时间（年月日时分秒）
+        String dateTimeStr = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyyMMddHHmmss"));
         
-        // 格式：前缀 + 日期 + 3位序列号
-        return String.format("%s%s%03d", prefix.toUpperCase(), dateStr, sequence);
+        // 格式：前缀 + 年月日时分秒 + 3位序列号
+        return String.format("%s%s%03d", prefix.toUpperCase(), dateTimeStr, sequence);
     }
     
     /**

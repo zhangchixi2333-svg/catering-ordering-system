@@ -245,27 +245,34 @@ public class PaymentOrderController {
         }
         System.out.println("✅ 支付订单状态已更新为：支付成功");
         
-        // 4. 调用order-service更新订单状态为"待接单"
-        log.info("\n步骤4: 调用order-service更新订单状态...");
-        log.info("【调用接口】PUT /api/order/{}/status?orderStatus=1", payment.getOrderId());
+        // 4. 调用order-service更新订单状态为"待接单"并更新支付信息
+        log.info("\n步骤4: 调用order-service更新订单状态和支付信息...");
+        log.info("【调用接口】PUT /api/order/{}/status?orderStatus=1&paymentStatus=1&paymentMethod={}", 
+                payment.getOrderId(), payment.getPaymentMethod());
         log.info("【目标服务】order-service (通过Eureka发现)");
-        log.info("【请求参数】订单ID: {}, 订单状态: 1(待接单)", payment.getOrderId());
+        log.info("【请求参数】订单ID: {}, 订单状态: 1(待接单), 支付状态: 1(已支付), 支付方式: {}", 
+                payment.getOrderId(), payment.getPaymentMethod());
         
         try {
             Result<Boolean> orderResult = orderFeignClient.updateOrderStatus(
                 payment.getOrderId(), 
-                1  // 1-待接单
+                1,  // 1-待接单
+                1,  // 1-已支付
+                payment.getPaymentMethod()  // 支付方式
             );
             
             if (orderResult != null && Boolean.TRUE.equals(orderResult.getData())) {
-                log.info("✅ 订单状态更新成功");
+                log.info("✅ 订单状态和支付信息更新成功");
                 log.info("  - 订单ID: {}", payment.getOrderId());
-                log.info("  - 新状态: 待接单");
+                log.info("  - 新订单状态: 待接单");
+                log.info("  - 新支付状态: 已支付");
+                log.info("  - 支付方式: {}", getPaymentMethodText(payment.getPaymentMethod()));
+                log.info("  - 支付时间: {}", payment.getPayTime());
                 log.info("==========================================\n");
                 return Result.success(true);
             } else {
                 String errorMsg = orderResult != null ? orderResult.getMessage() : "返回结果为null";
-                log.error("❌ 订单状态更新失败 - 错误信息: {}", errorMsg);
+                log.error("❌ 订单状态和支付信息更新失败 - 错误信息: {}", errorMsg);
                 log.error("⚠️ 但支付已成功，请手动处理或通过补偿任务修复");
                 log.error("==========================================\n");
                 return Result.error("支付成功，但订单状态更新失败: " + errorMsg);
@@ -276,6 +283,17 @@ public class PaymentOrderController {
             log.error("⚠️ 但支付已成功，请手动处理或通过补偿任务修复");
             log.error("==========================================\n");
             return Result.error("支付成功，但无法联系订单服务，请稍后重试");
+        }
+    }
+    
+    private String getPaymentMethodText(Integer paymentMethod) {
+        if (paymentMethod == null) return "未知";
+        switch (paymentMethod) {
+            case 1: return "微信";
+            case 2: return "支付宝";
+            case 3: return "现金";
+            case 4: return "会员卡";
+            default: return "未知";
         }
     }
 }
