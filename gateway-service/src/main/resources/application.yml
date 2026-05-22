@@ -61,6 +61,14 @@ spring:
           filters:
             - StripPrefix=0
 
+        # 桌台服务路由（属于店铺服务的一部分）
+        - id: table-service
+          uri: lb://shop-service
+          predicates:
+            - Path=/api/table/**
+          filters:
+            - StripPrefix=0
+
         # 排队服务路由
         - id: queue-service
           uri: lb://queue-service
@@ -104,7 +112,7 @@ jwt:
 
 # 白名单配置（不需要 Token 验证的路径）
 security:
-  whitelist: /api/auth/login,/api/auth/register,/doc.html,/swagger-ui/**,/v3/api-docs/**,/webjars/**,/actuator/**
+  whitelist: /api/auth/login,/api/auth/register,/doc.html,/swagger-ui/**,/v3/api-docs/**,/webjars/**,/actuator/**,/api/table/**
 
 # Actuator 监控配置
 management:

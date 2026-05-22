@@ -173,6 +173,10 @@ export const queueApi = {
   getById(id) {
     return request.get(`/queue/${id}`)
   },
+  // 根据排队号码获取排队
+  getByQueueNo(queueNo) {
+    return request.get(`/queue/no/${queueNo}`)
+  },
   // 根据店铺获取排队
   getByShop(shopId) {
     return request.get(`/queue/shop/${shopId}`)

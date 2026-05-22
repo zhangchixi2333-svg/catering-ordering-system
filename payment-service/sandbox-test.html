@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>支付沙盒测试平台</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            font-size: 32px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: bold;
+        }
+        
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        
+        input[type="text"]:focus,
+        input[type="number"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .payment-methods {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .payment-btn {
+            padding: 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: white;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .payment-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+        
+        .wechat {
+            background: linear-gradient(135deg, #07C160 0%, #05a050 100%);
+        }
+        
+        .alipay {
+            background: linear-gradient(135deg, #1677FF 0%, #0d5fd9 100%);
+        }
+        
+        .cash {
+            background: linear-gradient(135deg, #FF9800 0%, #e68900 100%);
+        }
+        
+        .member {
+            background: linear-gradient(135deg, #9C27B0 0%, #7b1f8c 100%);
+        }
+        
+        .bank {
+            background: linear-gradient(135deg, #2196F3 0%, #1976d2 100%);
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #667eea;
+            display: none;
+        }
+        
+        .result.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .success {
+            color: #07C160;
+            font-weight: bold;
+        }
+        
+        .error {
+            color: #f44336;
+            font-weight: bold;
+        }
+        
+        .info {
+            color: #2196F3;
+        }
+        
+        .log {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            margin-bottom: 5px;
+            line-height: 1.6;
+        }
+        
+        .log-time {
+            color: #75715e;
+        }
+        
+        .log-success {
+            color: #a6e22e;
+        }
+        
+        .log-error {
+            color: #f92672;
+        }
+        
+        .log-info {
+            color: #66d9ef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 支付沙盒测试平台</h1>
+        
+        <!-- 创建支付订单 -->
+        <div class="card">
+            <h2>📝 步骤1：创建支付订单</h2>
+            <div class="form-group">
+                <label for="orderNo">订单编号：</label>
+                <input type="text" id="orderNo" placeholder="例如：ORD20260520710935" value="ORD20260520710935">
+            </div>
+            <button class="btn btn-primary" onclick="createPayment()">创建支付订单</button>
+            
+            <div id="createResult" class="result"></div>
+        </div>
+        
+        <!-- 模拟支付成功 -->
+        <div class="card">
+            <h2>✅ 步骤2：模拟支付成功</h2>
+            <div class="form-group">
+                <label for="paymentId">支付ID：</label>
+                <input type="number" id="paymentId" placeholder="请输入支付ID" value="1">
+            </div>
+            
+            <p style="margin: 15px 0; color: #666;">选择支付方式进行测试：</p>
+            <div class="payment-methods">
+                <button class="payment-btn wechat" onclick="simulateSuccess('wechat')">
+                    💚 微信支付
+                </button>
+                <button class="payment-btn alipay" onclick="simulateSuccess('alipay')">
+                    💙 支付宝
+                </button>
+                <button class="payment-btn cash" onclick="simulateSuccess('cash')">
+                    💵 现金支付
+                </button>
+                <button class="payment-btn member" onclick="simulateSuccess('member_card')">
+                    💳 会员卡支付
+                </button>
+                <button class="payment-btn bank" onclick="simulateSuccess('bank_card')">
+                    🏦 银行卡支付
+                </button>
+            </div>
+            
+            <div id="successResult" class="result"></div>
+        </div>
+        
+        <!-- 模拟支付失败 -->
+        <div class="card">
+            <h2>❌ 步骤3：模拟支付失败</h2>
+            <div class="form-group">
+                <label for="failPaymentId">支付ID：</label>
+                <input type="number" id="failPaymentId" placeholder="请输入支付ID" value="1">
+            </div>
+            <div class="form-group">
+                <label for="failReason">失败原因：</label>
+                <input type="text" id="failReason" placeholder="例如：用户取消支付" value="用户取消支付">
+            </div>
+            <button class="btn btn-primary" onclick="simulateFailure()" style="background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);">
+                ❌ 模拟支付失败
+            </button>
+            
+            <div id="failResult" class="result"></div>
+        </div>
+        
+        <!-- 操作日志 -->
+        <div class="card">
+            <h2>📋 操作日志</h2>
+            <div id="logContainer" class="log">
+                <div class="log-entry">
+                    <span class="log-time">[系统]</span> 
+                    <span class="log-info">支付沙盒测试平台已就绪...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8084/api/payment';
+        const SANDBOX_BASE = 'http://localhost:8084/api/payment/sandbox';
+        
+        let currentPaymentId = null;
+        
+        // 添加日志
+        function addLog(message, type = 'info') {
+            const logContainer = document.getElementById('logContainer');
+            const time = new Date().toLocaleTimeString('zh-CN');
+            const logClass = type === 'success' ? 'log-success' : 
+                           type === 'error' ? 'log-error' : 'log-info';
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `
+                <span class="log-time">[${time}]</span> 
+                <span class="${logClass}">${message}</span>
+            `;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        // 显示结果
+        function showResult(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            const className = type === 'success' ? 'success' : 
+                            type === 'error' ? 'error' : 'info';
+            
+            element.innerHTML = `<span class="${className}">${message}</span>`;
+            element.classList.add('show');
+        }
+        
+        // 创建支付订单
+        async function createPayment() {
+            const orderNo = document.getElementById('orderNo').value.trim();
+            
+            if (!orderNo) {
+                showResult('createResult', '❌ 请输入订单编号', 'error');
+                return;
+            }
+            
+            addLog(`正在创建支付订单 - 订单号: ${orderNo}`);
+            addLog(`请求URL: ${API_BASE}`);
+            
+            try {
+                const requestBody = {
+                    orderNo: orderNo
+                };
+                
+                addLog(`请求体: ${JSON.stringify(requestBody)}`);
+                
+                const response = await fetch(`${API_BASE}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+                
+                addLog(`响应状态: ${response.status} ${response.statusText}`);
+                
+                const result = await response.json();
+                addLog(`响应数据: ${JSON.stringify(result)}`);
+                
+                if (result.code === 200) {
+                    addLog('✅ 支付订单创建成功', 'success');
+                    
+                    // 自动查询支付ID
+                    await queryPaymentId(orderNo);
+                    
+                    showResult('createResult', 
+                        '✅ 支付订单创建成功！<br>支付ID已自动填充到下方表单', 
+                        'success');
+                } else {
+                    addLog(`❌ 创建失败: ${result.message}`, 'error');
+                    showResult('createResult', `❌ ${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ 请求异常: ${error.message}`, 'error');
+                addLog(`提示: 如果是跨域问题，请通过 http://localhost:8084/doc.html 测试`, 'error');
+                showResult('createResult', `❌ 请求失败: ${error.message}<br><small>请检查服务是否启动，或尝试使用 Swagger UI</small>`, 'error');
+            }
+        }
+        
+        // 查询支付ID
+        async function queryPaymentId(orderNo) {
+            try {
+                addLog(`正在查询支付ID - 订单号: ${orderNo}`);
+                
+                const response = await fetch(`${API_BASE}/order/${orderNo}`);
+                const result = await response.json();
+                
+                if (result.code === 200 && result.data) {
+                    currentPaymentId = result.data.id;
+                    document.getElementById('paymentId').value = currentPaymentId;
+                    document.getElementById('failPaymentId').value = currentPaymentId;
+                    
+                    addLog(`✅ 查询成功 - 支付ID: ${currentPaymentId}`, 'success');
+                }
+            } catch (error) {
+                addLog(`⚠️ 查询支付ID失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 模拟支付成功
+        async function simulateSuccess(paymentMethod) {
+            const paymentId = document.getElementById('paymentId').value;
+            
+            if (!paymentId) {
+                showResult('successResult', '❌ 请输入支付ID', 'error');
+                return;
+            }
+            
+            const methodName = getMethodName(paymentMethod);
+            addLog(`🧪 模拟${methodName}成功 - 支付ID: ${paymentId}`);
+            
+            try {
+                const response = await fetch(`${SANDBOX_BASE}/success/${paymentId}`, {
+                    method: 'POST'
+                });
+                
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    addLog(`✅ ${methodName}模拟成功`, 'success');
+                    showResult('successResult', 
+                        `✅ ${methodName}模拟成功！<br>
+                         支付ID: ${paymentId}<br>
+                         状态已更新为"支付成功"<br>
+                         订单状态已更新为"待接单"`, 
+                        'success');
+                } else {
+                    addLog(`❌ 模拟失败: ${result.message}`, 'error');
+                    showResult('successResult', `❌ ${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ 请求失败: ${error.message}`, 'error');
+                showResult('successResult', `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 模拟支付失败
+        async function simulateFailure() {
+            const paymentId = document.getElementById('failPaymentId').value;
+            const reason = document.getElementById('failReason').value;
+            
+            if (!paymentId) {
+                showResult('failResult', '❌ 请输入支付ID', 'error');
+                return;
+            }
+            
+            addLog(`🧪 模拟支付失败 - 支付ID: ${paymentId}, 原因: ${reason}`);
+            
+            try {
+                const response = await fetch(
+                    `${SANDBOX_BASE}/failure/${paymentId}?reason=${encodeURIComponent(reason)}`, 
+                    {
+                        method: 'POST'
+                    }
+                );
+                
+                const result = await response.json();
+                
+                if (result.code === 200) {
+                    addLog(`✅ 模拟支付失败成功`, 'success');
+                    showResult('failResult', 
+                        `✅ 模拟支付失败成功！<br>
+                         支付ID: ${paymentId}<br>
+                         失败原因: ${reason}`, 
+                        'success');
+                } else {
+                    addLog(`❌ 模拟失败: ${result.message}`, 'error');
+                    showResult('failResult', `❌ ${result.message}`, 'error');
+                }
+            } catch (error) {
+                addLog(`❌ 请求失败: ${error.message}`, 'error');
+                showResult('failResult', `❌ 请求失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 获取支付方式名称
+        function getMethodName(method) {
+            const methods = {
+                'wechat': '微信支付',
+                'alipay': '支付宝',
+                'cash': '现金支付',
+                'member_card': '会员卡支付',
+                'bank_card': '银行卡支付'
+            };
+            return methods[method] || method;
+        }
+        
+        // 根据代码获取支付方式名称
+        function getMethodNameByCode(code) {
+            const methods = {
+                1: '微信支付',
+                2: '支付宝',
+                3: '现金支付',
+                4: '会员卡支付',
+                5: '银行卡支付'
+            };
+            return methods[code] || '未知';
+        }
+        
+        // 页面加载完成
+        window.onload = function() {
+            addLog('🎉 支付沙盒测试平台已启动');
+            addLog('💡 提示：请先创建支付订单，然后选择支付方式进行测试');
+        };
+    </script>
+</body>
+</html>

@@ -39,6 +39,10 @@ export default defineConfig({
       '/api/notification': {
         target: 'http://localhost:8086',
         changeOrigin: true
+      },
+      '/api/table': {
+        target: 'http://localhost:8081',  // 桌台服务属于shop-service
+        changeOrigin: true
       }
     }
   }
