@@ -107,17 +107,22 @@ export const useUserStore = defineStore('user', () => {
     console.log('========== 开始获取菜单 ==========')
     console.log('用户信息:', user.value)
     console.log('用户菜单数据:', user.value?.menus)
+    console.log('用户菜单数据类型:', typeof user.value?.menus)
+    console.log('用户菜单数据是否为数组:', Array.isArray(user.value?.menus))
     
     // 如果用户有从后端获取的菜单数据，则使用它
     if (user.value?.menus && Array.isArray(user.value.menus) && user.value.menus.length > 0) {
-      console.log('使用后端菜单数据')
+      console.log('✅ 使用后端菜单数据')
       console.log('原始菜单数据:', user.value.menus)
+      console.log('原始菜单数据数量:', user.value.menus.length)
+      
       const treeMenus = buildMenuTree(user.value.menus)
       console.log('构建的树形菜单:', treeMenus)
+      console.log('==========================================')
       return treeMenus
     }
     
-    console.log('使用默认菜单数据')
+    console.log('⚠️ 使用默认菜单数据（未从后端获取到菜单）')
     // 否则使用默认的基于角色的菜单
     // 优先使用 roles 数组中的第一个角色，其次使用 role 字段
     const userRole = Array.isArray(user.value?.roles) 

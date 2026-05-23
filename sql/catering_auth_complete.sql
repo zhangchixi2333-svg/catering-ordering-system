@@ -1,8 +1,8 @@
 -- =============================================
--- 餐饮点餐排队系统 - 角色权限系统数据库脚本
--- 版本: 1.0
--- 日期: 2026-05-18
--- 说明: RBAC 角色权限管理系统
+-- 餐饮点餐排队系统 - 权限认证系统完整数据库脚本
+-- 版本: 2.0
+-- 日期: 2026-05-23
+-- 说明: RBAC 角色权限管理系统 - 包含店长管理控制台
 -- =============================================
 
 -- 创建数据库（如果不存在）
@@ -159,28 +159,37 @@ INSERT INTO sys_role (role_code, role_name, description, sort_order) VALUES
 
 -- 2. 初始化菜单数据
 -- 顶级菜单（menu_type: 1-目录，2-菜单）
-INSERT INTO sys_menu (id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort_order, permission, visible) VALUES
-(1, 0, '首页', 'dashboard', 2, '/dashboard', 'DashboardView.vue', '🏠', 1, 'dashboard:view', 1),
-(2, 0, '排队管理', 'queue', 1, '/queue', '', '🎫', 2, NULL, 1),
-(3, 0, '订单管理', 'order', 1, '/orders', '', '📦', 3, NULL, 1),
-(4, 0, '店铺管理', 'shop', 1, '/shops', '', '🏪', 4, NULL, 1),
-(5, 0, '系统管理', 'system', 1, '/system', '', '⚙️', 5, NULL, 1);
+INSERT INTO sys_menu (id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort_order, permission, visible, status) VALUES
+(1, 0, '首页', 'dashboard', 2, '/dashboard', 'DashboardView.vue', 'home', 1, 'dashboard:view', 1, 1),
+(2, 0, '排队管理', 'queue', 1, '/queue', '', 'ticket', 2, NULL, 1, 1),
+(3, 0, '订单管理', 'order', 1, '/orders', '', 'box', 3, NULL, 1, 1),
+(4, 0, '店铺管理', 'shop', 1, '/shops', '', 'store', 4, NULL, 1, 1),
+(5, 0, '系统管理', 'system', 1, '/system', '', 'settings', 5, NULL, 1, 1);
 
--- 二级菜单（明确指定 ID 6-20）
--- 注意：path 已更新为与前端路由匹配的路径
-INSERT INTO sys_menu (id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort_order, permission, visible) VALUES
-(6, 2, '取号排队', 'queue:take', 2, '/queue', 'QueueView.vue', '🎫', 1, 'queue:take', 1),
-(7, 2, '叫号管理', 'queue:call', 2, '/call-number', 'CallNumberView.vue', '🔔', 2, 'queue:call', 1),
-(8, 3, '在线点餐', 'order:menu', 2, '/ordering', 'OrderingView.vue', '🍽️', 1, 'order:menu', 1),
-(9, 3, '我的订单', 'order:my', 2, '/my-orders', 'MyOrdersView.vue', '📦', 2, 'order:my', 1),
-(10, 3, '支付订单', 'order:payment', 2, '/payment', 'PaymentView.vue', '💳', 3, 'order:payment', 1),
-(11, 4, '店铺列表', 'shop:list', 2, '/shops', 'ShopView.vue', '🏪', 1, 'shop:list', 1),
-(12, 4, '店铺统计', 'shop:stats', 2, '/shops', 'ShopStatsView.vue', '📈', 2, 'shop:stats', 1),
-(13, 5, '用户管理', 'system:user', 2, '/system/users', 'UserManageView.vue', '👥', 1, 'system:user', 0),
-(14, 5, '角色管理', 'system:role', 2, '/system/roles', 'RoleManageView.vue', '🔐', 2, 'system:role', 0),
-(15, 5, '系统设置', 'system:settings', 2, '/settings', 'SettingsView.vue', '⚙️', 3, 'system:settings', 1),
-(16, 3, '全部订单', 'order:all', 2, '/orders', 'OrderView.vue', '📊', 4, 'order:all', 1),
-(17, 4, '桌台管理', 'shop:table', 2, '/table-management', 'TableManagementView.vue', '🪑', 3, 'shop:table', 1);
+-- 排队管理子菜单
+INSERT INTO sys_menu (id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort_order, permission, visible, status) VALUES
+(6, 2, '取号排队', 'queue_take', 2, '/queue', 'QueueView.vue', 'ticket', 1, 'queue:take', 1, 1),
+(7, 2, '叫号管理', 'queue_call', 2, '/call-number', 'CallNumberView.vue', 'bell', 2, 'queue:call', 1, 1);
+
+-- 订单管理子菜单
+INSERT INTO sys_menu (id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort_order, permission, visible, status) VALUES
+(8, 3, '在线点餐', 'order_menu', 2, '/ordering', 'OrderingView.vue', 'restaurant', 1, 'order:menu', 1, 1),
+(9, 3, '我的订单', 'order_my', 2, '/my-orders', 'MyOrdersView.vue', 'box', 2, 'order:my', 1, 1),
+(10, 3, '支付订单', 'order_payment', 2, '/payment', 'PaymentView.vue', 'credit_card', 3, 'order:payment', 1, 1),
+(11, 3, '全部订单', 'order_all', 2, '/orders', 'OrderView.vue', 'chart_bar', 4, 'order:all', 1, 1);
+
+-- 店铺管理子菜单
+INSERT INTO sys_menu (id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort_order, permission, visible, status) VALUES
+(12, 4, '店长控制台', 'shop_manager', 2, '/manager-dashboard', 'ManagerDashboard.vue', 'person', 0, 'shop:manager', 1, 1),
+(13, 4, '店铺列表', 'shop_list', 2, '/shops', 'ShopView.vue', 'store', 1, 'shop:list', 1, 1),
+(14, 4, '店铺统计', 'shop_stats', 2, '/shops/stats', 'ShopStatsView.vue', 'trending_up', 2, 'shop:stats', 1, 1),
+(15, 4, '桌台管理', 'shop_table', 2, '/table-management', 'TableManagementView.vue', 'chair', 3, 'shop:table', 1, 1);
+
+-- 系统管理子菜单
+INSERT INTO sys_menu (id, parent_id, menu_name, menu_code, menu_type, path, component, icon, sort_order, permission, visible, status) VALUES
+(16, 5, '用户管理', 'system_user', 2, '/system/users', 'UserManageView.vue', 'people', 1, 'system:user', 0, 1),
+(17, 5, '角色管理', 'system_role', 2, '/system/roles', 'RoleManageView.vue', 'lock', 2, 'system:role', 0, 1),
+(18, 5, '系统设置', 'system_settings', 2, '/settings', 'SettingsView.vue', 'settings', 3, 'system:settings', 1, 1);
 
 -- 3. 初始化用户数据（密码统一为 123456，实际应该使用 BCrypt 加密）
 -- 注意：这里使用明文密码仅用于测试，生产环境必须加密！
@@ -219,54 +228,114 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (2, 8),   -- 在线点餐
 (2, 9),   -- 我的订单
 (2, 10),  -- 支付订单
-(2, 16),  -- 全部订单
+(2, 11),  -- 全部订单
 (2, 2),   -- 排队管理（目录）
 (2, 6),   -- 取号排队
 (2, 7),   -- 叫号管理
 (2, 4),   -- 店铺管理（目录）
-(2, 17);  -- 桌台管理
+(2, 15);  -- 桌台管理
 
--- 店长 (MANAGER) 权限：店员 + 店铺管理
+-- 店长 (MANAGER) 权限：店员 + 店铺管理（包括店长控制台）
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (3, 1),   -- 首页
 (3, 3),   -- 订单管理（目录）
 (3, 8),   -- 在线点餐
 (3, 9),   -- 我的订单
 (3, 10),  -- 支付订单
-(3, 16),  -- 全部订单
+(3, 11),  -- 全部订单
 (3, 2),   -- 排队管理（目录）
 (3, 6),   -- 取号排队
 (3, 7),   -- 叫号管理
 (3, 4),   -- 店铺管理（目录）
-(3, 11),  -- 店铺列表
-(3, 12),  -- 店铺统计
-(3, 17);  -- 桌台管理
+(3, 12),  -- 店长控制台 ⭐ 新增
+(3, 13),  -- 店铺列表
+(3, 14),  -- 店铺统计
+(3, 15);  -- 桌台管理
 
 -- 超级管理员 (ADMIN) 权限：所有菜单
 INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 (4, 1), (4, 2), (4, 6), (4, 7),    -- 首页、排队管理
-(4, 3), (4, 8), (4, 9), (4, 10), (4, 16),  -- 订单管理
-(4, 4), (4, 11), (4, 12), (4, 17), -- 店铺管理
-(4, 5), (4, 13), (4, 14), (4, 15); -- 系统管理
+(4, 3), (4, 8), (4, 9), (4, 10), (4, 11),  -- 订单管理
+(4, 4), (4, 12), (4, 13), (4, 14), (4, 15), -- 店铺管理
+(4, 5), (4, 16), (4, 17), (4, 18); -- 系统管理
 
 -- =============================================
--- 常用查询示例
+-- 创建权限矩阵视图
+-- =============================================
+CREATE OR REPLACE VIEW v_permission_matrix AS
+SELECT 
+    r.role_code as role_code,
+    r.role_name as role_name,
+    m.menu_name as menu_name,
+    m.path as route_path,
+    m.permission as permission_code
+FROM sys_role r
+JOIN sys_role_menu rm ON r.id = rm.role_id
+JOIN sys_menu m ON rm.menu_id = m.id
+WHERE m.status = 1 AND r.status = 1
+ORDER BY r.sort_order, m.parent_id, m.sort_order;
+
+-- =============================================
+-- 验证查询
 -- =============================================
 
--- 查询某个用户的所有角色
--- SELECT r.* FROM sys_role r
--- JOIN sys_user_role ur ON r.id = ur.role_id
--- WHERE ur.user_id = 1;
+-- 查询完整的菜单树结构
+SELECT 
+    m.id,
+    m.parent_id,
+    m.menu_name,
+    m.menu_code,
+    CASE 
+        WHEN m.menu_type = 1 THEN '目录'
+        WHEN m.menu_type = 2 THEN '菜单'
+        WHEN m.menu_type = 3 THEN '按钮'
+        ELSE '未知'
+    END as menu_type_name,
+    m.path,
+    m.icon,
+    m.sort_order,
+    m.permission,
+    CASE 
+        WHEN m.visible = 1 THEN '显示'
+        ELSE '隐藏'
+    END as visible_name,
+    CASE 
+        WHEN m.status = 1 THEN '启用'
+        ELSE '禁用'
+    END as status_name
+FROM sys_menu m
+ORDER BY m.parent_id, m.sort_order;
 
--- 查询某个角色的所有菜单
--- SELECT m.* FROM sys_menu m
--- JOIN sys_role_menu rm ON m.id = rm.menu_id
--- WHERE rm.role_id = 1
--- ORDER BY m.sort_order;
+-- 查询各角色的菜单权限统计
+SELECT 
+    r.role_code,
+    r.role_name,
+    COUNT(rm.menu_id) as menu_count
+FROM sys_role r
+LEFT JOIN sys_role_menu rm ON r.id = rm.role_id
+GROUP BY r.id, r.role_code, r.role_name
+ORDER BY r.sort_order;
 
--- 查询用户的完整权限（角色 + 菜单）
--- SELECT DISTINCT m.* FROM sys_menu m
--- JOIN sys_role_menu rm ON m.id = rm.menu_id
--- JOIN sys_user_role ur ON rm.role_id = ur.role_id
--- WHERE ur.user_id = 1 AND m.status = 1
--- ORDER BY m.sort_order;
+-- 查询店长的具体菜单权限
+SELECT 
+    m.id,
+    m.menu_name,
+    m.path,
+    m.icon,
+    m.sort_order
+FROM sys_menu m
+JOIN sys_role_menu rm ON m.id = rm.menu_id
+WHERE rm.role_id = 3  -- 店长角色ID
+AND m.status = 1
+ORDER BY m.parent_id, m.sort_order;
+
+-- =============================================
+-- 执行完成提示
+-- =============================================
+
+SELECT '✅ 权限认证系统数据库初始化完成！' as message;
+SELECT CONCAT('📊 菜单总数：', (SELECT COUNT(*) FROM sys_menu)) as total_menus;
+SELECT CONCAT('👥 角色总数：', (SELECT COUNT(*) FROM sys_role)) as total_roles;
+SELECT CONCAT('👤 用户总数：', (SELECT COUNT(*) FROM sys_user)) as total_users;
+SELECT CONCAT('🔗 权限关联总数：', (SELECT COUNT(*) FROM sys_role_menu)) as total_permissions;
+SELECT '👨‍💼 店长现在可以访问店长控制台页面：/manager-dashboard' as new_feature;

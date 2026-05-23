@@ -68,6 +68,12 @@ const routes = [
         meta: { roles: ['MANAGER', 'ADMIN'] }
       },
       {
+        path: 'manager-dashboard',
+        name: 'ManagerDashboard',
+        component: () => import('../views/ManagerDashboard.vue'),
+        meta: { roles: ['MANAGER', 'ADMIN'] }
+      },
+      {
         path: 'settings',
         name: 'Settings',
         component: () => import('../views/SettingsView.vue'),

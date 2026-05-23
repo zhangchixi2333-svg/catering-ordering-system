@@ -96,6 +96,10 @@ const handleLogin = async () => {
         menus: loginData.menus
       }
       
+      console.log('🔍 登录成功，用户数据:', userData)
+      console.log('🔍 后端返回的菜单数据:', loginData.menus)
+      console.log('🔍 菜单数量:', loginData.menus?.length || 0)
+      
       // 存储用户信息和token
       userStore.login(userData, loginData.token)
       
