@@ -68,6 +68,16 @@ const routes = [
         meta: { roles: ['MANAGER', 'ADMIN'] }
       },
       {
+        path: 'shops/stats',
+        name: 'ShopStats',
+        component: () => import('../views/ShopStatsView.vue'),
+        meta: { roles: ['MANAGER', 'ADMIN'] }
+      },
+      {
+        path: 'shop-stats',
+        redirect: '/shops/stats'
+      },
+      {
         path: 'manager-dashboard',
         name: 'ManagerDashboard',
         component: () => import('../views/ManagerDashboard.vue'),

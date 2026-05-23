@@ -138,6 +138,22 @@ export const shopApi = {
   getById(id) {
     return request.get(`/shop/${id}`)
   },
+  // 获取店铺统计数据
+  getStats(shopId, timeRange = 'today') {
+    return request.get(`/shop/${shopId}/stats`, { params: { timeRange } })
+  },
+  // 获取所有店铺统计数据
+  getAllStats() {
+    return request.get('/shop/stats/all')
+  },
+  // 获取店铺实时排队数据
+  getRealtimeQueueData(shopId) {
+    return request.get(`/shop/${shopId}/queue/realtime`)
+  },
+  // 获取店铺趋势数据
+  getTrends(shopId, days = 7) {
+    return request.get(`/shop/${shopId}/trends`, { params: { days } })
+  },
   // 创建店铺
   create(data) {
     return request.post('/shop', data)
