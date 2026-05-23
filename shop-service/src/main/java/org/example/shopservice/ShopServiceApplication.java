@@ -1,6 +1,5 @@
 package org.example.shopservice;
 
-import org.example.shopservice.feign.ShopFeignClient;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -13,7 +12,7 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 @SpringBootApplication
 @EnableDiscoveryClient
 @MapperScan("org.example.shopservice.mapper")
-@EnableFeignClients(clients = ShopFeignClient.class)
+@EnableFeignClients(basePackages = "org.example.shopservice.feign")
 public class ShopServiceApplication {
 
     public static void main(String[] args) {

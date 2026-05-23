@@ -12,6 +12,7 @@
         </option>
       </select>
       <button @click="loadDashboardData" class="btn-refresh">🔄 刷新数据</button>
+      <span v-if="loading" class="loading-text">加载中...</span>
     </div>
     
     <!-- 统计卡片 -->
@@ -44,7 +45,7 @@
           <div class="stat-value">{{ stats.waitingQueue }}</div>
           <div class="stat-label">等待排队</div>
           <div class="stat-trend trend-neutral">
-            当前等待人数
+            预计等待 {{ stats.avgWaitTime }} 分钟
           </div>
         </div>
       </div>
@@ -55,7 +56,29 @@
           <div class="stat-value">{{ stats.availableTables }}/{{ stats.totalTables }}</div>
           <div class="stat-label">可用桌台</div>
           <div class="stat-trend trend-neutral">
-            空闲桌台数
+            占用率 {{ stats.tableOccupancyRate }}%
+          </div>
+        </div>
+      </div>
+      
+      <div class="stat-card stat-customers">
+        <div class="stat-icon">👥</div>
+        <div class="stat-content">
+          <div class="stat-value">{{ stats.todayCustomers }}</div>
+          <div class="stat-label">今日顾客</div>
+          <div class="stat-trend trend-neutral">
+            服务人次
+          </div>
+        </div>
+      </div>
+      
+      <div class="stat-card stat-calling">
+        <div class="stat-icon">📢</div>
+        <div class="stat-content">
+          <div class="stat-value">{{ redisData.callingCount || 0 }}</div>
+          <div class="stat-label">已叫号</div>
+          <div class="stat-trend trend-neutral">
+            待入座人数
           </div>
         </div>
       </div>
@@ -65,6 +88,52 @@
     <div v-else class="empty-state">
       <div class="empty-icon">👨‍💼</div>
       <p>请选择要管理的店铺</p>
+    </div>
+    
+    <!-- 实时Redis排队数据 -->
+    <div v-if="selectedShopId" class="redis-queue-data">
+      <h3>📡 实时Redis排队数据</h3>
+      <div class="queue-data-grid">
+        <div class="queue-data-card">
+          <div class="queue-data-title">等待队列</div>
+          <div class="queue-data-content">
+            <div v-if="redisData.waitingQueue && redisData.waitingQueue.length > 0" class="queue-list">
+              <div v-for="(item, index) in redisData.waitingQueue" :key="index" class="queue-item">
+                <span class="queue-index">{{ index + 1 }}</span>
+                <span class="queue-id">{{ item }}</span>
+              </div>
+            </div>
+            <div v-else class="queue-empty">暂无等待排队</div>
+          </div>
+        </div>
+        
+        <div class="queue-data-card">
+          <div class="queue-data-title">叫号队列</div>
+          <div class="queue-data-content">
+            <div v-if="redisData.callingQueue && redisData.callingQueue.length > 0" class="queue-list">
+              <div v-for="(item, index) in redisData.callingQueue" :key="index" class="queue-item">
+                <span class="queue-index">{{ index + 1 }}</span>
+                <span class="queue-id">{{ item }}</span>
+              </div>
+            </div>
+            <div v-else class="queue-empty">暂无叫号记录</div>
+          </div>
+        </div>
+      </div>
+      <div class="queue-stats">
+        <div class="queue-stat-item">
+          <span class="queue-stat-label">等待中：</span>
+          <span class="queue-stat-value">{{ redisData.waitingCount || 0 }} 人</span>
+        </div>
+        <div class="queue-stat-item">
+          <span class="queue-stat-label">已叫号：</span>
+          <span class="queue-stat-value">{{ redisData.callingCount || 0 }} 人</span>
+        </div>
+        <div class="queue-stat-item">
+          <span class="queue-stat-label">总计：</span>
+          <span class="queue-stat-value">{{ (redisData.waitingCount || 0) + (redisData.callingCount || 0) }} 人</span>
+        </div>
+      </div>
     </div>
     
     <!-- 功能快捷入口 -->
@@ -123,14 +192,14 @@
         <div class="status-item">
           <span class="status-label">桌台占用率：</span>
           <span class="status-value">
-            {{ tableOccupancyRate }}%
+            {{ stats.tableOccupancyRate }}%
           </span>
         </div>
         
         <div class="status-item">
           <span class="status-label">平均等待时间：</span>
           <span class="status-value">
-            {{ avgWaitTime }} 分钟
+            {{ stats.avgWaitTime }} 分钟
           </span>
         </div>
         
@@ -172,7 +241,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from 'axios'
 import { useUserStore } from '@/stores/user'
@@ -184,6 +253,7 @@ const selectedShopId = ref('')
 const shops = ref([])
 const shopStatus = ref(0)
 const loading = ref(false)
+let refreshInterval = null
 
 const stats = ref({
   todayOrders: 0,
@@ -193,19 +263,19 @@ const stats = ref({
   totalTables: 0,
   ordersTrend: 0,
   revenueTrend: 0,
-  todayCustomers: 0
+  todayCustomers: 0,
+  tableOccupancyRate: 0,
+  avgWaitTime: 15
+})
+
+const redisData = ref({
+  waitingQueue: [],
+  callingQueue: [],
+  waitingCount: 0,
+  callingCount: 0
 })
 
 const recentOrders = ref([])
-
-const tableOccupancyRate = computed(() => {
-  if (stats.value.totalTables === 0) return 0
-  return Math.round(((stats.value.totalTables - stats.value.availableTables) / stats.value.totalTables) * 100)
-})
-
-const avgWaitTime = computed(() => {
-  return Math.floor(Math.random() * 20) + 5
-})
 
 const loadShops = async () => {
   try {
@@ -239,7 +309,8 @@ const loadDashboardData = async () => {
     await Promise.all([
       loadStats(),
       loadRecentOrders(),
-      loadShopStatus()
+      loadShopStatus(),
+      loadRedisQueueData()
     ])
   } catch (error) {
     console.error('加载数据失败:', error)
@@ -252,7 +323,20 @@ const loadStats = async () => {
   try {
     const response = await axios.get(`/api/shop/${selectedShopId.value}/stats`)
     if (response.data.code === 200) {
-      stats.value = response.data.data || stats.value
+      const data = response.data.data
+      stats.value = {
+        ...stats.value,
+        todayOrders: data.todayOrders || 0,
+        todayRevenue: data.todayRevenue || 0,
+        waitingQueue: data.waitingQueue || 0,
+        availableTables: data.availableTables || 0,
+        totalTables: data.totalTables || 0,
+        ordersTrend: data.ordersTrend || 0,
+        revenueTrend: data.revenueTrend || 0,
+        todayCustomers: data.todayCustomers || 0,
+        tableOccupancyRate: data.tableOccupancyRate || 0,
+        avgWaitTime: data.avgWaitTime || 15
+      }
     }
   } catch (error) {
     console.error('加载统计数据失败:', error)
@@ -278,6 +362,38 @@ const loadShopStatus = async () => {
     }
   } catch (error) {
     console.error('加载店铺状态失败:', error)
+  }
+}
+
+const loadRedisQueueData = async () => {
+  try {
+    const response = await axios.get(`/api/queue/stats/redis/${selectedShopId.value}`)
+    if (response.data.code === 200) {
+      const data = response.data.data
+      redisData.value = {
+        waitingQueue: data.waitingQueue || [],
+        callingQueue: data.callingQueue || [],
+        waitingCount: data.waitingCount || 0,
+        callingCount: data.callingCount || 0
+      }
+    }
+  } catch (error) {
+    console.error('加载Redis排队数据失败:', error)
+  }
+}
+
+const startAutoRefresh = () => {
+  refreshInterval = setInterval(() => {
+    if (selectedShopId.value) {
+      loadRedisQueueData()
+    }
+  }, 5000) // 每5秒刷新一次Redis数据
+}
+
+const stopAutoRefresh = () => {
+  if (refreshInterval) {
+    clearInterval(refreshInterval)
+    refreshInterval = null
   }
 }
 
@@ -334,6 +450,11 @@ onMounted(() => {
   }
   
   loadShops()
+  startAutoRefresh()
+})
+
+onUnmounted(() => {
+  stopAutoRefresh()
 })
 </script>
 
@@ -391,6 +512,11 @@ onMounted(() => {
   background: #7a8feb;
 }
 
+.loading-text {
+  color: #667eea;
+  font-size: 14px;
+}
+
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -441,6 +567,14 @@ onMounted(() => {
   background: #fce4ec;
 }
 
+.stat-customers .stat-icon {
+  background: #e0f2f1;
+}
+
+.stat-calling .stat-icon {
+  background: #f3e5f5;
+}
+
 .stat-content {
   flex: 1;
 }
@@ -473,6 +607,118 @@ onMounted(() => {
 
 .trend-neutral {
   color: #718096;
+}
+
+.redis-queue-data {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+
+.redis-queue-data h3 {
+  margin: 0 0 20px 0;
+  color: #2d3748;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.queue-data-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.queue-data-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.queue-data-title {
+  background: #f7fafc;
+  padding: 12px 15px;
+  font-weight: 600;
+  color: #2d3748;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.queue-data-content {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.queue-list {
+  padding: 10px;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #f0f0f0;
+  transition: background 0.2s;
+}
+
+.queue-item:hover {
+  background: #f7fafc;
+}
+
+.queue-item:last-child {
+  border-bottom: none;
+}
+
+.queue-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: #667eea;
+  color: white;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.queue-id {
+  color: #2d3748;
+  font-size: 14px;
+}
+
+.queue-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #a0aec0;
+  font-size: 14px;
+}
+
+.queue-stats {
+  display: flex;
+  gap: 20px;
+  padding: 15px;
+  background: #f7fafc;
+  border-radius: 6px;
+}
+
+.queue-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.queue-stat-label {
+  color: #718096;
+  font-size: 14px;
+}
+
+.queue-stat-value {
+  color: #2d3748;
+  font-weight: 600;
+  font-size: 16px;
 }
 
 .quick-actions {
