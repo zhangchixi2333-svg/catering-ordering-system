@@ -11,7 +11,7 @@ env:
   IMAGE_TAG: ${{ github.run_number }}
 
 jobs:
-  build-shop-service:
+  build-and-push-images:
     runs-on: ubuntu-latest
 
     steps:
@@ -26,7 +26,7 @@ jobs:
           cache: maven
 
       - name: Build backend jars
-        run: mvn clean package -DskipTests
+        run: mvn clean package spring-boot:repackage -DskipTests
 
       - name: Check CI variables
         env:
@@ -53,14 +53,57 @@ jobs:
             --username "${{ secrets.ACR_USERNAME }}" \
             --password-stdin
 
-      - name: Build shop-service image
+      - name: Build backend images
+        run: |
+          services=(
+            eureka-server
+            gateway-service
+            shop-service
+            menu-service
+            order-service
+            payment-service
+            queue-service
+            notification-service
+            user-service
+          )
+
+          for service in "${services[@]}"; do
+            jar_file="${service}/target/${service}-1.0-SNAPSHOT.jar"
+
+            if [ ! -f "$jar_file" ]; then
+              echo "::error::Jar file not found: $jar_file"
+              exit 1
+            fi
+
+            docker build \
+              -f deploy/docker/Dockerfile.backend \
+              --build-arg JAR_FILE="$jar_file" \
+              -t "${{ env.IMAGE_PREFIX }}:${service}-${{ env.IMAGE_TAG }}" \
+              .
+          done
+
+      - name: Build frontend image
         run: |
           docker build \
-            -f deploy/docker/Dockerfile.backend \
-            --build-arg JAR_FILE=shop-service/target/shop-service-1.0-SNAPSHOT.jar \
-            -t "${{ env.IMAGE_PREFIX }}:shop-service-${{ env.IMAGE_TAG }}" \
-            .
+            -f frontend/Dockerfile \
+            -t "${{ env.IMAGE_PREFIX }}:frontend-${{ env.IMAGE_TAG }}" \
+            frontend
 
-      - name: Push shop-service image
+      - name: Push all images
         run: |
-          docker push "${{ env.IMAGE_PREFIX }}:shop-service-${{ env.IMAGE_TAG }}"
+          images=(
+            eureka-server
+            gateway-service
+            shop-service
+            menu-service
+            order-service
+            payment-service
+            queue-service
+            notification-service
+            user-service
+            frontend
+          )
+
+          for image in "${images[@]}"; do
+            docker push "${{ env.IMAGE_PREFIX }}:${image}-${{ env.IMAGE_TAG }}"
+          done
