@@ -1,0 +1,11 @@
+{{- if .Values.mysql.init.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catering-mysql-init-sql
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "mysql-init-sql" "root" $) | nindent 4 }}
+data:
+{{- (.Files.Glob "files/sql/*.sql").AsConfig | nindent 2 }}
+{{- end }}

@@ -1,0 +1,166 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "mysql" "root" $) | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "mysql" "root" $) | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "catering.selectorLabels" (dict "name" "mysql") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "catering.selectorLabels" (dict "name" "mysql") | nindent 8 }}
+        {{- include "catering.labels" (dict "name" "mysql" "root" $) | nindent 8 }}
+    spec:
+      containers:
+        - name: mysql
+          image: {{ .Values.mysql.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.mysql.port }}
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: catering-secret
+                  key: MYSQL_ROOT_PASSWORD
+            - name: TZ
+              value: Asia/Shanghai
+          args:
+            - --character-set-server=utf8mb4
+            - --collation-server=utf8mb4_unicode_ci
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-data
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "mysql" "root" $) | nindent 4 }}
+spec:
+  selector:
+    {{- include "catering.selectorLabels" (dict "name" "mysql") | nindent 4 }}
+  ports:
+    - name: mysql
+      port: {{ .Values.mysql.port }}
+      targetPort: {{ .Values.mysql.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "redis" "root" $) | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "catering.selectorLabels" (dict "name" "redis") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "catering.selectorLabels" (dict "name" "redis") | nindent 8 }}
+        {{- include "catering.labels" (dict "name" "redis" "root" $) | nindent 8 }}
+    spec:
+      containers:
+        - name: redis
+          image: {{ .Values.redis.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.redis.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "redis" "root" $) | nindent 4 }}
+spec:
+  selector:
+    {{- include "catering.selectorLabels" (dict "name" "redis") | nindent 4 }}
+  ports:
+    - name: redis
+      port: {{ .Values.redis.port }}
+      targetPort: {{ .Values.redis.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "rabbitmq" "root" $) | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "catering.selectorLabels" (dict "name" "rabbitmq") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "catering.selectorLabels" (dict "name" "rabbitmq") | nindent 8 }}
+        {{- include "catering.labels" (dict "name" "rabbitmq" "root" $) | nindent 8 }}
+    spec:
+      containers:
+        - name: rabbitmq
+          image: {{ .Values.rabbitmq.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.rabbitmq.amqpPort }}
+            - containerPort: {{ .Values.rabbitmq.managementPort }}
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: catering-secret
+                  key: RABBITMQ_USERNAME
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: catering-secret
+                  key: RABBITMQ_PASSWORD
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "rabbitmq" "root" $) | nindent 4 }}
+spec:
+  selector:
+    {{- include "catering.selectorLabels" (dict "name" "rabbitmq") | nindent 4 }}
+  ports:
+    - name: amqp
+      port: {{ .Values.rabbitmq.amqpPort }}
+      targetPort: {{ .Values.rabbitmq.amqpPort }}
+    - name: management
+      port: {{ .Values.rabbitmq.managementPort }}
+      targetPort: {{ .Values.rabbitmq.managementPort }}

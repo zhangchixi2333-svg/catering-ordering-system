@@ -1,0 +1,57 @@
+{{- if and .Values.mysql.init.enabled .Release.IsInstall }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: catering-mysql-init
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "mysql-init" "root" $) | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "10"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "catering.selectorLabels" (dict "name" "mysql-init") | nindent 8 }}
+        {{- include "catering.labels" (dict "name" "mysql-init" "root" $) | nindent 8 }}
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mysql-init
+          image: {{ .Values.mysql.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          env:
+            - name: MYSQL_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: catering-secret
+                  key: MYSQL_ROOT_PASSWORD
+          command:
+            - sh
+            - -c
+            - |
+              set -e
+
+              echo "Waiting for MySQL..."
+              until mysqladmin ping -hmysql -uroot --silent; do
+                sleep 2
+              done
+
+              echo "Import SQL files..."
+              for file in /init-sql/*.sql; do
+                echo "Running $file"
+                mysql -hmysql -uroot --default-character-set=utf8mb4 < "$file"
+              done
+
+              echo "MySQL init finished."
+          volumeMounts:
+            - name: init-sql
+              mountPath: /init-sql
+      volumes:
+        - name: init-sql
+          configMap:
+            name: catering-mysql-init-sql
+{{- end }}
