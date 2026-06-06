@@ -45,6 +45,9 @@ eureka:
     prefer-ip-address: true
     instance-id: ${spring.application.name}:${server.port}
 
+jwt:
+  secret: catering-ordering-system-jwt-secret-key-2026
+
 # MyBatis Plus配置
 mybatis-plus:
   mapper-locations: classpath*:/mapper/**/*.xml

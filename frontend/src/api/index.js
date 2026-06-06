@@ -1,5 +1,7 @@
 import axios from 'axios'
 
+export const getAuthToken = () => sessionStorage.getItem('token') || localStorage.getItem('token') || ''
+
 const request = axios.create({
   baseURL: '/api',
   timeout: 10000
@@ -19,7 +21,7 @@ request.interceptors.request.use(
     })
     
     // 添加认证token
-    const token = localStorage.getItem('token')
+    const token = getAuthToken()
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
       console.log('📤 [API请求] 添加认证Token:', {
@@ -322,12 +324,66 @@ export const notificationApi = {
   // 获取在线用户数
   getOnlineCount() {
     return request.get('/notification/ws/online/count')
+  },
+  getOnlineStatus(userIds) {
+    return request.get('/notification/ws/online/status', {
+      params: { userIds },
+      paramsSerializer: params => {
+        const search = new URLSearchParams()
+        ;(params.userIds || []).forEach(userId => search.append('userIds', userId))
+        return search.toString()
+      }
+    })
   }
 }
 
 // WebSocket 连接
+// ==================== Chat API ====================
+export const chatApi = {
+  send(data) {
+    return request.post('/notification/chat/send', data)
+  },
+  getConversation(peerId, limit = 100, peerIds = []) {
+    return request.get('/notification/chat/conversation', {
+      params: { peerId, peerIds, limit },
+      paramsSerializer: params => {
+        const search = new URLSearchParams()
+        Object.entries(params).forEach(([key, value]) => {
+          if (Array.isArray(value)) {
+            value.forEach(item => search.append(key, item))
+          } else if (value !== undefined && value !== null) {
+            search.append(key, value)
+          }
+        })
+        return search.toString()
+      }
+    })
+  },
+  getRecent(limit = 50) {
+    return request.get('/notification/chat/recent', {
+      params: { limit }
+    })
+  },
+  getOnlineStatus(userIds) {
+    return request.get('/notification/chat/online', {
+      params: { userIds },
+      paramsSerializer: params => {
+        const search = new URLSearchParams()
+        ;(params.userIds || []).forEach(userId => search.append('userIds', userId))
+        return search.toString()
+      }
+    })
+  }
+}
+
 export function createWebSocket(userId, onMessage) {
-  const ws = new WebSocket(`ws://localhost:8086/ws/notification/${userId}`)
+  const protocol = window.location.protocol === 'https:' ? 'wss' : 'ws'
+  const token = getAuthToken()
+  const params = new URLSearchParams()
+  if (token) {
+    params.set('token', token)
+  }
+  const ws = new WebSocket(`${protocol}://${window.location.host}/ws/notification/${userId}?${params.toString()}`)
   
   ws.onopen = () => {
     console.log('✅ WebSocket 连接成功')

@@ -8,6 +8,8 @@ CREATE DATABASE IF NOT EXISTS order_service DEFAULT CHARACTER SET utf8mb4 COLLAT
 
 USE order_service;
 
+SET NAMES utf8mb4;
+
 -- ============================================
 -- 1. 订单主表
 -- ============================================

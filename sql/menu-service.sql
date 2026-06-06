@@ -8,6 +8,8 @@ CREATE DATABASE IF NOT EXISTS menu_service DEFAULT CHARACTER SET utf8mb4 COLLATE
 
 USE menu_service;
 
+SET NAMES utf8mb4;
+
 -- ============================================
 -- 1. 菜单分类表
 -- ============================================

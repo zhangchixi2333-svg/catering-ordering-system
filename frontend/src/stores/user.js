@@ -5,7 +5,7 @@ import { authApi } from '../api'
 export const useUserStore = defineStore('user', () => {
   // 用户信息
   const user = ref(null)
-  const token = ref(localStorage.getItem('token') || '')
+  const token = ref(sessionStorage.getItem('token') || localStorage.getItem('token') || '')
   // 当前店铺ID
   const currentShopId = ref(null)
   
@@ -51,8 +51,10 @@ export const useUserStore = defineStore('user', () => {
   const login = (userData, authToken) => {
     user.value = userData
     token.value = authToken
-    localStorage.setItem('token', authToken)
-    localStorage.setItem('user', JSON.stringify(userData))
+    sessionStorage.setItem('token', authToken)
+    sessionStorage.setItem('user', JSON.stringify(userData))
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
   }
 
   // 登出
@@ -70,6 +72,8 @@ export const useUserStore = defineStore('user', () => {
       // 清除本地数据
       user.value = null
       token.value = ''
+      sessionStorage.removeItem('token')
+      sessionStorage.removeItem('user')
       localStorage.removeItem('token')
       localStorage.removeItem('user')
       console.log('🚪 用户已登出')
@@ -78,9 +82,9 @@ export const useUserStore = defineStore('user', () => {
 
   // 初始化用户信息（从 localStorage）
   const initUser = () => {
-    const savedToken = localStorage.getItem('token')
-    const savedUser = localStorage.getItem('user')
-    const savedShopId = localStorage.getItem('currentShopId')
+    const savedToken = sessionStorage.getItem('token') || localStorage.getItem('token')
+    const savedUser = sessionStorage.getItem('user') || localStorage.getItem('user')
+    const savedShopId = sessionStorage.getItem('currentShopId') || localStorage.getItem('currentShopId')
     
     if (savedToken && savedUser) {
       token.value = savedToken
@@ -96,13 +100,24 @@ export const useUserStore = defineStore('user', () => {
   const setCurrentShopId = (shopId) => {
     currentShopId.value = shopId
     if (shopId) {
-      localStorage.setItem('currentShopId', shopId.toString())
+      sessionStorage.setItem('currentShopId', shopId.toString())
     } else {
-      localStorage.removeItem('currentShopId')
+      sessionStorage.removeItem('currentShopId')
     }
   }
 
   // 根据角色获取菜单
+  const refreshMenus = async () => {
+    if (!token.value || !user.value) return []
+    const res = await authApi.getUserMenus(token.value)
+    user.value = {
+      ...user.value,
+      menus: res.data || []
+    }
+    sessionStorage.setItem('user', JSON.stringify(user.value))
+    return user.value.menus
+  }
+
   const getMenuByRole = () => {
     console.log('========== 开始获取菜单 ==========')
     console.log('用户信息:', user.value)
@@ -286,6 +301,7 @@ export const useUserStore = defineStore('user', () => {
     token,
     currentShopId,
     setCurrentShopId,
+    refreshMenus,
     ROLES,
     isLoggedIn,
     currentRole,

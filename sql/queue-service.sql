@@ -8,6 +8,8 @@ CREATE DATABASE IF NOT EXISTS queue_service DEFAULT CHARACTER SET utf8mb4 COLLAT
 
 USE queue_service;
 
+SET NAMES utf8mb4;
+
 -- ============================================
 -- 1. 排队号码表
 -- ============================================

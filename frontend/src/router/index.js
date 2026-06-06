@@ -50,6 +50,11 @@ const routes = [
         component: () => import('../views/PaymentView.vue')
       },
       {
+        path: 'chat',
+        name: 'Chat',
+        component: () => import('../views/ChatView.vue')
+      },
+      {
         path: 'table-management',
         name: 'TableManagement',
         component: () => import('../views/TableManagementView.vue'),

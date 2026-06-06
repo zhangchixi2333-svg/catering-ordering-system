@@ -116,7 +116,6 @@ public class AuthController {
         String token = jwtUtil.generateToken(userInfo.getId(), request.getUsername(), mainRole);
         
         // 7. 更新用户在线状态和最后登录信息
-        user.setIsOnline(1); // 设置为在线
         user.setLastLoginTime(LocalDateTime.now());
         userMapper.updateById(user);
         
@@ -312,5 +311,41 @@ public class AuthController {
         System.out.println("==========================================\n");
         
         return Result.success("登出成功");
+    }
+
+    @PostMapping("/internal/users/{userId}/online")
+    public Result<Boolean> updateOnlineStatus(
+            @PathVariable Long userId,
+            @RequestParam("online") Boolean online) {
+        SysUser user = userMapper.selectById(userId);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+        user.setIsOnline(Boolean.TRUE.equals(online) ? 1 : 0);
+        userMapper.updateById(user);
+        return Result.success(true);
+    }
+
+    @GetMapping("/internal/users/{userId}/online")
+    public Result<Map<String, Object>> getOnlineStatus(@PathVariable Long userId) {
+        SysUser user = userMapper.selectById(userId);
+        if (user == null) {
+            return Result.error("用户不存在");
+        }
+        Map<String, Object> result = new HashMap<>();
+        result.put("userId", userId);
+        result.put("online", Integer.valueOf(1).equals(user.getIsOnline()));
+        return Result.success(result);
+    }
+
+    @GetMapping("/internal/users/online")
+    public Result<Map<Long, Boolean>> getBatchOnlineStatus(@RequestParam("userIds") List<Long> userIds) {
+        Map<Long, Boolean> result = new LinkedHashMap<>();
+        if (userIds == null || userIds.isEmpty()) {
+            return Result.success(result);
+        }
+        userMapper.selectBatchIds(userIds.stream().filter(Objects::nonNull).distinct().toList())
+                .forEach(user -> result.put(user.getId(), Integer.valueOf(1).equals(user.getIsOnline())));
+        return Result.success(result);
     }
 }

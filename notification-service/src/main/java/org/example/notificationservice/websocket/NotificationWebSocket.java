@@ -1,156 +1,215 @@
 package org.example.notificationservice.websocket;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Component;
-
-import jakarta.websocket.*;
+import jakarta.websocket.CloseReason;
+import jakarta.websocket.OnClose;
+import jakarta.websocket.OnError;
+import jakarta.websocket.OnMessage;
+import jakarta.websocket.OnOpen;
+import jakarta.websocket.Session;
 import jakarta.websocket.server.PathParam;
 import jakarta.websocket.server.ServerEndpoint;
+import lombok.extern.slf4j.Slf4j;
+import org.example.notificationservice.client.UserOnlineStatusClient;
+import org.example.notificationservice.util.JwtUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * WebSocket服务端点
- * 用于向客户端推送实时通知
- * 
- * 连接地址: ws://localhost:8086/ws/notification/{userId}
- * 示例: ws://localhost:8086/ws/notification/1001
- */
 @Slf4j
 @Component
 @ServerEndpoint("/ws/notification/{userId}")
 public class NotificationWebSocket {
 
-    /**
-     * 存储所有在线用户的WebSocket会话
-     * Key: userId, Value: Session
-     */
-    private static final Map<Long, Session> SESSION_MAP = new ConcurrentHashMap<>();
-    
-    private static ObjectMapper objectMapper = new ObjectMapper();
+    private static final Map<Long, Set<Session>> SESSION_MAP = new ConcurrentHashMap<>();
+    private static final Map<String, Long> SESSION_USER_MAP = new ConcurrentHashMap<>();
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static UserOnlineStatusClient userOnlineStatusClient;
 
-    /**
-     * 连接建立成功时调用
-     * @param session WebSocket会话
-     * @param userId 用户ID（从路径参数获取）
-     */
+    @Autowired
+    public void setUserOnlineStatusClient(UserOnlineStatusClient client) {
+        NotificationWebSocket.userOnlineStatusClient = client;
+    }
+
     @OnOpen
     public void onOpen(Session session, @PathParam("userId") Long userId) {
-        SESSION_MAP.put(userId, session);
-        log.info("WebSocket连接建立 - 用户ID: {}, 当前在线用户数: {}", userId, SESSION_MAP.size());
-        
-        // 发送连接成功消息
-        sendMessage(userId, new NotificationMessage("CONNECTED", "WebSocket连接成功", null));
+        String token = getFirstQueryParam(session, "token");
+        if (!JwtUtil.validateTokenForUser(token, userId)) {
+            log.warn("WebSocket auth failed - userId: {}, sessionId: {}", userId, session.getId());
+            closeSession(session, CloseReason.CloseCodes.VIOLATED_POLICY, "Invalid token");
+            return;
+        }
+
+        SESSION_MAP.computeIfAbsent(userId, key -> ConcurrentHashMap.newKeySet()).add(session);
+        SESSION_USER_MAP.put(session.getId(), userId);
+        syncUserOnlineStatus(userId, true);
+        broadcast(new NotificationMessage("USER_STATUS", "User status changed", Map.of("userId", userId, "online", true)));
+        log.info("WebSocket connected - userId: {}, sessionId: {}, onlineUsers: {}, sessions: {}",
+                userId, session.getId(), SESSION_MAP.size(), getSessionCount());
+
+        sendMessage(userId, new NotificationMessage("CONNECTED", "WebSocket connected", null));
     }
 
-    /**
-     * 连接关闭时调用
-     * @param userId 用户ID
-     */
     @OnClose
-    public void onClose(@PathParam("userId") Long userId) {
-        SESSION_MAP.remove(userId);
-        log.info("WebSocket连接关闭 - 用户ID: {}, 当前在线用户数: {}", userId, SESSION_MAP.size());
+    public void onClose(Session session, @PathParam("userId") Long userId) {
+        removeSession(userId, session);
+        syncOfflineIfNoSession(userId);
+        log.info("WebSocket closed - userId: {}, sessionId: {}, onlineUsers: {}, sessions: {}",
+                userId, session.getId(), SESSION_MAP.size(), getSessionCount());
     }
 
-    /**
-     * 收到客户端消息时调用
-     * @param message 客户端发送的消息
-     * @param userId 用户ID
-     */
     @OnMessage
     public void onMessage(String message, @PathParam("userId") Long userId) {
-        log.info("收到用户 {} 的消息: {}", userId, message);
-        // 可以在这里处理客户端发来的消息
+        log.debug("Received WebSocket message - userId: {}, message: {}", userId, message);
+        if ("PING".equalsIgnoreCase(message)) {
+            sendMessage(userId, new NotificationMessage("PONG", "pong", null));
+        }
     }
 
-    /**
-     * 发生错误时调用
-     * @param userId 用户ID
-     * @param error 错误信息
-     */
     @OnError
-    public void onError(@PathParam("userId") Long userId, Throwable error) {
-        log.error("WebSocket发生错误 - 用户ID: {}", userId, error);
-        SESSION_MAP.remove(userId);
+    public void onError(Session session, @PathParam("userId") Long userId, Throwable error) {
+        log.error("WebSocket error - userId: {}, sessionId: {}", userId, session == null ? null : session.getId(), error);
+        if (session != null) {
+            removeSession(userId, session);
+            syncOfflineIfNoSession(userId);
+        }
     }
 
-    /**
-     * 向指定用户推送消息
-     * @param userId 用户ID
-     * @param message 消息对象
-     */
-    public static void sendMessage(Long userId, NotificationMessage message) {
-        Session session = SESSION_MAP.get(userId);
-        if (session != null && session.isOpen()) {
-            try {
-                String jsonMessage = objectMapper.writeValueAsString(message);
-                session.getBasicRemote().sendText(jsonMessage);
-                log.debug("消息推送成功 - 用户ID: {}, 消息类型: {}", userId, message.getType());
-            } catch (IOException e) {
-                log.error("消息推送失败 - 用户ID: {}", userId, e);
+    public static boolean sendMessage(Long userId, NotificationMessage message) {
+        Set<Session> sessions = SESSION_MAP.get(userId);
+        if (sessions == null || sessions.isEmpty()) {
+            log.warn("User offline, unable to push message - userId: {}", userId);
+            return false;
+        }
+
+        boolean sent = false;
+        for (Session session : sessions) {
+            if (session == null || !session.isOpen()) {
+                removeSession(userId, session);
+                continue;
             }
-        } else {
-            log.warn("用户不在线，无法推送消息 - 用户ID: {}", userId);
+            try {
+                String jsonMessage = OBJECT_MAPPER.writeValueAsString(message);
+                session.getAsyncRemote().sendText(jsonMessage);
+                sent = true;
+                log.debug("Message pushed - userId: {}, sessionId: {}, type: {}", userId, session.getId(), message.getType());
+            } catch (IOException e) {
+                log.error("Message push failed - userId: {}, sessionId: {}", userId, session.getId(), e);
+                removeSession(userId, session);
+            }
         }
+        return sent;
     }
 
-    /**
-     * 向指定用户推送排队相关通知
-     * @param userId 用户ID
-     * @param type 通知类型：QUEUE_CREATED-取号成功, QUEUE_CALLED-叫号通知, QUEUE_COMPLETED-排队完成, QUEUE_CANCELLED-排队取消
-     * @param data 通知数据（排队信息）
-     */
-    public static void pushQueueNotification(Long userId, String type, Object data) {
-        NotificationMessage message = new NotificationMessage(type, getNotificationTitle(type), data);
-        sendMessage(userId, message);
+    public static boolean pushQueueNotification(Long userId, String type, Object data) {
+        return sendMessage(userId, new NotificationMessage(type, getNotificationTitle(type), data));
     }
 
-    /**
-     * 根据通知类型获取标题
-     */
+    public static void broadcast(NotificationMessage message) {
+        SESSION_MAP.keySet().forEach(userId -> sendMessage(userId, message));
+    }
+
     private static String getNotificationTitle(String type) {
-        switch (type) {
-            case "QUEUE_CREATED":
-                return "取号成功";
-            case "QUEUE_CALLED":
-                return "叫号通知";
-            case "QUEUE_COMPLETED":
-                return "排队完成";
-            case "QUEUE_CANCELLED":
-                return "排队取消";
-            default:
-                return "通知";
-        }
+        return switch (type) {
+            case "QUEUE_CREATED" -> "取号成功";
+            case "QUEUE_CALLED" -> "叫号通知";
+            case "QUEUE_COMPLETED" -> "排队完成";
+            case "QUEUE_CANCELLED" -> "排队取消";
+            case "ORDER_CREATED" -> "订单创建成功";
+            case "ORDER_PAID" -> "订单支付成功";
+            case "ORDER_COMPLETED" -> "订单已完成";
+            case "ORDER_CANCELLED" -> "订单已取消";
+            default -> "通知";
+        };
     }
 
-    /**
-     * 检查用户是否在线
-     * @param userId 用户ID
-     * @return 是否在线
-     */
     public static boolean isUserOnline(Long userId) {
-        Session session = SESSION_MAP.get(userId);
-        return session != null && session.isOpen();
+        Set<Session> sessions = SESSION_MAP.get(userId);
+        if (sessions == null || sessions.isEmpty()) {
+            return false;
+        }
+        sessions.removeIf(session -> session == null || !session.isOpen());
+        if (sessions.isEmpty()) {
+            SESSION_MAP.remove(userId);
+            return false;
+        }
+        return true;
     }
 
-    /**
-     * 获取当前在线用户数
-     */
     public static int getOnlineCount() {
+        SESSION_MAP.keySet().forEach(NotificationWebSocket::isUserOnline);
         return SESSION_MAP.size();
     }
 
-    /**
-     * 通知消息内部类
-     */
+    public static int getSessionCount() {
+        SESSION_MAP.keySet().forEach(NotificationWebSocket::isUserOnline);
+        return SESSION_MAP.values().stream().mapToInt(Set::size).sum();
+    }
+
+    public static Set<Long> getOnlineUserIds() {
+        SESSION_MAP.keySet().forEach(NotificationWebSocket::isUserOnline);
+        return Set.copyOf(SESSION_MAP.keySet());
+    }
+
+    private static String getFirstQueryParam(Session session, String name) {
+        List<String> values = session.getRequestParameterMap().get(name);
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        return values.get(0);
+    }
+
+    private static void closeSession(Session session, CloseReason.CloseCode closeCode, String reason) {
+        try {
+            if (session != null && session.isOpen()) {
+                session.close(new CloseReason(closeCode, reason));
+            }
+        } catch (IOException e) {
+            log.warn("Failed to close WebSocket session: {}", session == null ? null : session.getId(), e);
+        }
+    }
+
+    private static void removeSession(Long userId, Session session) {
+        if (session == null) {
+            return;
+        }
+        Long resolvedUserId = userId != null ? userId : SESSION_USER_MAP.remove(session.getId());
+        if (resolvedUserId == null) {
+            return;
+        }
+        SESSION_USER_MAP.remove(session.getId());
+        Set<Session> sessions = SESSION_MAP.get(resolvedUserId);
+        if (sessions != null) {
+            sessions.remove(session);
+            if (sessions.isEmpty()) {
+                SESSION_MAP.remove(resolvedUserId);
+            }
+        }
+    }
+
+    private static void syncOfflineIfNoSession(Long userId) {
+        if (userId != null && !isUserOnline(userId)) {
+            syncUserOnlineStatus(userId, false);
+            broadcast(new NotificationMessage("USER_STATUS", "User status changed", Map.of("userId", userId, "online", false)));
+        }
+    }
+
+    private static void syncUserOnlineStatus(Long userId, boolean online) {
+        if (userOnlineStatusClient != null) {
+            userOnlineStatusClient.updateOnlineStatus(userId, online);
+        }
+    }
+
     public static class NotificationMessage {
-        private String type;      // 消息类型
-        private String title;     // 消息标题
-        private Object data;      // 消息数据
-        private Long timestamp;   // 时间戳
+        private String type;
+        private String title;
+        private Object data;
+        private Long timestamp;
 
         public NotificationMessage(String type, String title, Object data) {
             this.type = type;
@@ -159,7 +218,6 @@ public class NotificationWebSocket {
             this.timestamp = System.currentTimeMillis();
         }
 
-        // Getters and Setters
         public String getType() {
             return type;
         }

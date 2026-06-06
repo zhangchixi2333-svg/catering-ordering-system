@@ -3,9 +3,12 @@ package org.example.gatewayservice;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.loadbalancer.annotation.LoadBalancerClients;
+import org.example.gatewayservice.config.CustomLoadBalancerConfiguration;
 
 @SpringBootApplication
 @EnableDiscoveryClient
+@LoadBalancerClients(defaultConfiguration = CustomLoadBalancerConfiguration.class)
 public class GatewayServiceApplication {
     public static void main(String[] args) {
         SpringApplication.run(GatewayServiceApplication.class, args);

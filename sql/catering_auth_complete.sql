@@ -10,6 +10,8 @@ CREATE DATABASE IF NOT EXISTS catering_auth DEFAULT CHARACTER SET utf8mb4 COLLAT
 
 USE catering_auth;
 
+SET NAMES utf8mb4;
+
 -- =============================================
 -- 1. 用户表 (sys_user)
 -- 说明: 存储系统所有用户信息
@@ -262,6 +264,89 @@ INSERT INTO sys_role_menu (role_id, menu_id) VALUES
 -- =============================================
 -- 创建权限矩阵视图
 -- =============================================
+-- =============================================
+-- Chat menu and UTF-8 name repair
+-- =============================================
+SET @chat_menu_id := (
+    SELECT id
+    FROM sys_menu
+    WHERE menu_code = 'notification_chat'
+    LIMIT 1
+);
+
+INSERT INTO sys_menu (
+    parent_id,
+    menu_name,
+    menu_code,
+    menu_type,
+    path,
+    component,
+    icon,
+    sort_order,
+    permission,
+    visible,
+    status
+)
+SELECT
+    0,
+    CONVERT(UNHEX('E5AE9EE697B6E5AFB9E8AF9D') USING utf8mb4),
+    'notification_chat',
+    2,
+    '/chat',
+    'ChatView.vue',
+    'Bell',
+    6,
+    'notification:chat',
+    1,
+    1
+WHERE @chat_menu_id IS NULL;
+
+SET @chat_menu_id := (
+    SELECT id
+    FROM sys_menu
+    WHERE menu_code = 'notification_chat'
+    LIMIT 1
+);
+
+UPDATE sys_menu
+SET menu_name = CONVERT(UNHEX('E5AE9EE697B6E5AFB9E8AF9D') USING utf8mb4),
+    path = '/chat',
+    component = 'ChatView.vue',
+    icon = 'Bell',
+    permission = 'notification:chat',
+    visible = 1,
+    status = 1
+WHERE id = @chat_menu_id;
+
+INSERT IGNORE INTO sys_role_menu (role_id, menu_id)
+SELECT id, @chat_menu_id
+FROM sys_role
+WHERE role_code IN ('USER', 'STAFF', 'MANAGER', 'ADMIN');
+
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E9A696E9A1B5') USING utf8mb4) WHERE menu_code = 'dashboard';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E68E92E9989FE7AEA1E79086') USING utf8mb4) WHERE menu_code = 'queue';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E8AEA2E58D95E7AEA1E79086') USING utf8mb4) WHERE menu_code = 'order';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E5BA97E993BAE7AEA1E79086') USING utf8mb4) WHERE menu_code = 'shop';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E7B3BBE7BB9FE7AEA1E79086') USING utf8mb4) WHERE menu_code = 'system';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E58F96E58FB7E68E92E9989F') USING utf8mb4) WHERE menu_code = 'queue_take';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E58FABE58FB7E7AEA1E79086') USING utf8mb4) WHERE menu_code = 'queue_call';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E59CA8E7BABFE782B9E9A490') USING utf8mb4) WHERE menu_code = 'order_menu';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E68891E79A84E8AEA2E58D95') USING utf8mb4) WHERE menu_code = 'order_my';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E694AFE4BB98E8AEA2E58D95') USING utf8mb4) WHERE menu_code = 'order_payment';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E585A8E983A8E8AEA2E58D95') USING utf8mb4) WHERE menu_code = 'order_all';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E5BA97E995BFE68EA7E588B6E58FB0') USING utf8mb4) WHERE menu_code = 'shop_manager';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E5BA97E993BAE58897E8A1A8') USING utf8mb4) WHERE menu_code = 'shop_list';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E5BA97E993BAE7BB9FE8AEA1') USING utf8mb4) WHERE menu_code = 'shop_stats';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E6A18CE58FB0E7AEA1E79086') USING utf8mb4) WHERE menu_code = 'shop_table';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E794A8E688B7E7AEA1E79086') USING utf8mb4) WHERE menu_code = 'system_user';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E8A792E889B2E7AEA1E79086') USING utf8mb4) WHERE menu_code = 'system_role';
+UPDATE sys_menu SET menu_name = CONVERT(UNHEX('E7B3BBE7BB9FE8AEBEE7BDAE') USING utf8mb4) WHERE menu_code = 'system_settings';
+
+UPDATE sys_role SET role_name = CONVERT(UNHEX('E699AEE9809AE794A8E688B7') USING utf8mb4) WHERE role_code = 'USER';
+UPDATE sys_role SET role_name = CONVERT(UNHEX('E5BA97E59198') USING utf8mb4) WHERE role_code = 'STAFF';
+UPDATE sys_role SET role_name = CONVERT(UNHEX('E5BA97E995BF') USING utf8mb4) WHERE role_code = 'MANAGER';
+UPDATE sys_role SET role_name = CONVERT(UNHEX('E8B685E7BAA7E7AEA1E79086E59198') USING utf8mb4) WHERE role_code = 'ADMIN';
+
 CREATE OR REPLACE VIEW v_permission_matrix AS
 SELECT 
     r.role_code as role_code,

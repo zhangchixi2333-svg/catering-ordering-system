@@ -48,3 +48,4 @@ logging:
   level:
     org.example.userservice: DEBUG
     com.baomidou.mybatisplus: DEBUG
+    org.springframework.web.servlet.resource.ResourceHttpRequestHandler: WARN

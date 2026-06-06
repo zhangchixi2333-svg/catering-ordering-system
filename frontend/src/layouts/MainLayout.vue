@@ -175,7 +175,16 @@ const handleLogout = () => {
 }
 
 // 自动展开包含当前路由的菜单
-onMounted(() => {
+const goToProfile = () => {
+  router.push('/profile')
+}
+
+onMounted(async () => {
+  try {
+    await userStore.refreshMenus()
+  } catch (error) {
+    console.error('刷新菜单失败:', error)
+  }
   const currentPath = router.currentRoute.value.path
   menus.value.forEach(menu => {
     if (menu.children && menu.children.some(child => child.path === currentPath)) {

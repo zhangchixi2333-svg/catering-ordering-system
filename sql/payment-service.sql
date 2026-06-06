@@ -8,6 +8,8 @@ CREATE DATABASE IF NOT EXISTS payment_service DEFAULT CHARACTER SET utf8mb4 COLL
 
 USE payment_service;
 
+SET NAMES utf8mb4;
+
 -- ============================================
 -- 1. 支付订单表
 -- ============================================

@@ -26,5 +26,6 @@ logging:
   level:
     root: INFO
     com.netflix.eureka: DEBUG
+    org.springframework.web.servlet.resource.ResourceHttpRequestHandler: WARN
   pattern:
     console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'

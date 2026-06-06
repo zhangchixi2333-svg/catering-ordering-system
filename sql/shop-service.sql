@@ -8,6 +8,8 @@ CREATE DATABASE IF NOT EXISTS shop_service DEFAULT CHARACTER SET utf8mb4 COLLATE
 
 USE shop_service;
 
+SET NAMES utf8mb4;
+
 -- ============================================
 -- 1. 店铺信息表
 -- ============================================
