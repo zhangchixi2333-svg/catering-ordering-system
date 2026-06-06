@@ -1,0 +1,97 @@
+{{- range .Values.services }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" .name "root" $) | nindent 4 }}
+spec:
+  replicas: {{ .replicas }}
+  selector:
+    matchLabels:
+      {{- include "catering.selectorLabels" (dict "name" .name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "catering.selectorLabels" (dict "name" .name) | nindent 8 }}
+        {{- include "catering.labels" (dict "name" .name "root" $) | nindent 8 }}
+    spec:
+      containers:
+        - name: {{ .name }}
+          image: {{ .image | quote }}
+          imagePullPolicy: {{ $.Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .port }}
+          env:
+            {{- if eq .name "order-service" }}
+            - name: POD_IP
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+            {{- end }}
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:mysql://mysql:{{ $.Values.mysql.port }}/{{ .database }}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+            - name: SPRING_DATASOURCE_USERNAME
+              value: root
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: catering-secret
+                  key: MYSQL_ROOT_PASSWORD
+            {{- if .redis }}
+            - name: SPRING_DATA_REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: catering-services-config
+                  key: REDIS_HOST
+            {{- end }}
+            {{- if .rabbitmq }}
+            - name: SPRING_RABBITMQ_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: catering-services-config
+                  key: RABBITMQ_HOST
+            - name: SPRING_RABBITMQ_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: catering-secret
+                  key: RABBITMQ_USERNAME
+            - name: SPRING_RABBITMQ_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: catering-secret
+                  key: RABBITMQ_PASSWORD
+            {{- end }}
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              valueFrom:
+                configMapKeyRef:
+                  name: catering-services-config
+                  key: EUREKA_DEFAULT_ZONE
+            {{- if eq .name "order-service" }}
+            - name: EUREKA_INSTANCE_PREFER_IP_ADDRESS
+              value: "true"
+            - name: EUREKA_INSTANCE_IP_ADDRESS
+              value: "$(POD_IP)"
+            - name: EUREKA_INSTANCE_HOSTNAME
+              value: {{ .name }}
+            - name: EUREKA_INSTANCE_INSTANCE_ID
+              value: "{{ .name }}:$(POD_IP):{{ .port }}"
+            {{- end }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+  namespace: {{ $.Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" .name "root" $) | nindent 4 }}
+spec:
+  selector:
+    {{- include "catering.selectorLabels" (dict "name" .name) | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .port }}
+      targetPort: {{ .port }}
+{{- end }}

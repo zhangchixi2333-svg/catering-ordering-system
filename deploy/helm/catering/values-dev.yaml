@@ -1,0 +1,10 @@
+namespace: catering-dev
+
+frontend:
+  serviceType: ClusterIP
+
+services:
+  shopService:
+    replicas: 1
+  orderService:
+    replicas: 1

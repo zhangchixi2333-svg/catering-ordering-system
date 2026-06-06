@@ -1,0 +1,66 @@
+name: catering-ci
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+env:
+  IMAGE_PREFIX: ${{ vars.ACR_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/${{ vars.ACR_REPOSITORY }}
+  IMAGE_TAG: ${{ github.run_number }}
+
+jobs:
+  build-shop-service:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+
+      - name: Build backend jars
+        run: mvn clean package -DskipTests
+
+      - name: Check CI variables
+        env:
+          ACR_REGISTRY: ${{ vars.ACR_REGISTRY }}
+          ACR_NAMESPACE: ${{ vars.ACR_NAMESPACE }}
+          ACR_REPOSITORY: ${{ vars.ACR_REPOSITORY }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+        run: |
+          missing=0
+          for name in ACR_REGISTRY ACR_NAMESPACE ACR_REPOSITORY ACR_USERNAME ACR_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::$name is not configured in GitHub Actions Secrets or Variables"
+              missing=1
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Log in to Aliyun ACR
+        run: |
+          echo "${{ secrets.ACR_PASSWORD }}" | docker login "${{ vars.ACR_REGISTRY }}" \
+            --username "${{ secrets.ACR_USERNAME }}" \
+            --password-stdin
+
+      - name: Build shop-service image
+        run: |
+          docker build \
+            -f deploy/docker/Dockerfile.backend \
+            --build-arg JAR_FILE=shop-service/target/shop-service-1.0-SNAPSHOT.jar \
+            -t "${{ env.IMAGE_PREFIX }}:shop-service-${{ env.IMAGE_TAG }}" \
+            .
+
+      - name: Push shop-service image
+        run: |
+          docker push "${{ env.IMAGE_PREFIX }}:shop-service-${{ env.IMAGE_TAG }}"

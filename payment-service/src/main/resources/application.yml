@@ -1,0 +1,92 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: payment-service
+  
+  # Eureka配置
+  cloud:
+    compatibility-verifier:
+      enabled: false
+  
+  # 数据源配置
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/payment_service?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+  
+  # RabbitMQ配置
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: guest
+    password: guest
+
+# Eureka配置
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    # 注册到Eureka
+    register-with-eureka: true
+    # 从Eureka获取服务
+    fetch-registry: true
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# MyBatis Plus配置
+mybatis-plus:
+  mapper-locations: classpath*:/mapper/**/*.xml
+  type-aliases-package: org.example.paymentservice.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+# Knife4j配置
+springdoc:
+  api-docs:
+    enabled: true
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+
+knife4j:
+  enable: true
+  setting:
+    language: zh_cn
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    org.example.paymentservice: DEBUG
+    org.springframework.web.servlet.resource.ResourceHttpRequestHandler: WARN
+    # Feign详细日志配置
+    org.example.paymentservice.feign.OrderFeignClient: DEBUG  # Feign客户端日志
+    feign.Logger: DEBUG  # Feign框架日志
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'
+
+# Feign配置
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 2000  # 连接超时时间（毫秒）
+        readTimeout: 5000     # 读取超时时间（毫秒）
+      order-service:
+        connectTimeout: 3000  # order-service连接超时时间（毫秒）
+        readTimeout: 10000    # order-service读取超时时间（毫秒）
+  compression:
+    request:
+      enabled: true
+    response:
+      enabled: true
+  # 启用Feign详细日志
+  logging:
+    level:
+      org.example.paymentservice.feign.OrderFeignClient: FULL

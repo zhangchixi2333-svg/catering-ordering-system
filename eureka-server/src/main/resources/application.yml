@@ -1,0 +1,31 @@
+server:
+  port: 8761
+
+spring:
+  application:
+    name: eureka-server
+
+eureka:
+  instance:
+    hostname: localhost
+  client:
+    # 不注册自己到 Eureka
+    register-with-eureka: false
+    # 不从 Eureka 获取服务
+    fetch-registry: false
+    service-url:
+      defaultZone: http://${eureka.instance.hostname}:${server.port}/eureka/
+  server:
+    # 自我保护模式（开发环境关闭，生产环境开启）
+    enable-self-preservation: true
+    # 清理间隔（毫秒）
+    eviction-interval-timer-in-ms: 5000
+
+# 日志配置
+logging:
+  level:
+    root: INFO
+    com.netflix.eureka: DEBUG
+    org.springframework.web.servlet.resource.ResourceHttpRequestHandler: WARN
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n'

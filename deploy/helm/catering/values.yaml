@@ -1,0 +1,95 @@
+namespace: catering-dev
+
+imagePullPolicy: IfNotPresent
+
+mysql:
+  image: mysql:8.0
+  rootPassword: "123456"
+  port: 3306
+  init:
+    enabled: true
+
+redis:
+  image: redis:7-alpine
+  port: 6379
+
+rabbitmq:
+  image: rabbitmq:3-management
+  username: guest
+  password: guest
+  amqpPort: 5672
+  managementPort: 15672
+
+eureka:
+  image: eureka-server:1.0
+  replicas: 1
+  port: 8761
+
+gateway:
+  image: gateway-service:1.0
+  replicas: 1
+  port: 8080
+
+frontend:
+  image: catering-frontend:1.0
+  replicas: 1
+  port: 80
+  serviceType: ClusterIP
+
+services:
+  shopService:
+    name: shop-service
+    image: shop-service:1.0
+    replicas: 1
+    port: 8081
+    database: shop_service
+    redis: true
+    rabbitmq: false
+  menuService:
+    name: menu-service
+    image: menu-service:1.0
+    replicas: 1
+    port: 8181
+    database: menu_service
+    redis: true
+    rabbitmq: false
+  orderService:
+    name: order-service
+    image: order-service:1.0
+    replicas: 1
+    port: 8083
+    database: order_service
+    redis: true
+    rabbitmq: true
+  paymentService:
+    name: payment-service
+    image: payment-service:1.0
+    replicas: 1
+    port: 8084
+    database: payment_service
+    redis: false
+    rabbitmq: true
+  queueService:
+    name: queue-service
+    image: queue-service:1.0
+    replicas: 1
+    port: 8085
+    database: queue_service
+    redis: true
+    rabbitmq: false
+  notificationService:
+    name: notification-service
+    image: notification-service:1.0
+    replicas: 1
+    port: 8086
+    database: notification_service
+    redis: true
+    rabbitmq: true
+  userService:
+    name: user-service
+    image: user-service:1.0
+    replicas: 1
+    port: 8087
+    database: catering_auth
+    redis: false
+    rabbitmq: false
