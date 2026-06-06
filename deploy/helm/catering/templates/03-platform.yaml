@@ -1,0 +1,143 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: eureka-server
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "eureka-server" "root" $) | nindent 4 }}
+spec:
+  replicas: {{ .Values.eureka.replicas }}
+  selector:
+    matchLabels:
+      {{- include "catering.selectorLabels" (dict "name" "eureka-server") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "catering.selectorLabels" (dict "name" "eureka-server") | nindent 8 }}
+        {{- include "catering.labels" (dict "name" "eureka-server" "root" $) | nindent 8 }}
+    spec:
+      containers:
+        - name: eureka-server
+          image: {{ .Values.eureka.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.eureka.port }}
+          env:
+            - name: EUREKA_INSTANCE_HOSTNAME
+              value: eureka-server
+            - name: EUREKA_CLIENT_REGISTER_WITH_EUREKA
+              value: "false"
+            - name: EUREKA_CLIENT_FETCH_REGISTRY
+              value: "false"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: eureka-server
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "eureka-server" "root" $) | nindent 4 }}
+spec:
+  selector:
+    {{- include "catering.selectorLabels" (dict "name" "eureka-server") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.eureka.port }}
+      targetPort: {{ .Values.eureka.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway-service
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "gateway-service" "root" $) | nindent 4 }}
+spec:
+  replicas: {{ .Values.gateway.replicas }}
+  selector:
+    matchLabels:
+      {{- include "catering.selectorLabels" (dict "name" "gateway-service") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "catering.selectorLabels" (dict "name" "gateway-service") | nindent 8 }}
+        {{- include "catering.labels" (dict "name" "gateway-service" "root" $) | nindent 8 }}
+    spec:
+      containers:
+        - name: gateway-service
+          image: {{ .Values.gateway.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.gateway.port }}
+          env:
+            - name: SPRING_DATA_REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: catering-services-config
+                  key: REDIS_HOST
+            - name: SPRING_DATA_REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: catering-services-config
+                  key: REDIS_PORT
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              valueFrom:
+                configMapKeyRef:
+                  name: catering-services-config
+                  key: EUREKA_DEFAULT_ZONE
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway-service
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "gateway-service" "root" $) | nindent 4 }}
+spec:
+  selector:
+    {{- include "catering.selectorLabels" (dict "name" "gateway-service") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.gateway.port }}
+      targetPort: {{ .Values.gateway.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "frontend" "root" $) | nindent 4 }}
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "catering.selectorLabels" (dict "name" "frontend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "catering.selectorLabels" (dict "name" "frontend") | nindent 8 }}
+        {{- include "catering.labels" (dict "name" "frontend" "root" $) | nindent 8 }}
+    spec:
+      containers:
+        - name: frontend
+          image: {{ .Values.frontend.image | quote }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.frontend.port }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "frontend" "root" $) | nindent 4 }}
+spec:
+  type: {{ .Values.frontend.serviceType }}
+  selector:
+    {{- include "catering.selectorLabels" (dict "name" "frontend") | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.frontend.port }}
+      targetPort: {{ .Values.frontend.port }}

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: catering-secret
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "catering-secret" "root" $) | nindent 4 }}
+type: Opaque
+stringData:
+  MYSQL_ROOT_PASSWORD: {{ .Values.mysql.rootPassword | quote }}
+  RABBITMQ_USERNAME: {{ .Values.rabbitmq.username | quote }}
+  RABBITMQ_PASSWORD: {{ .Values.rabbitmq.password | quote }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catering-services-config
+  namespace: {{ .Values.namespace | quote }}
+  labels:
+    {{- include "catering.labels" (dict "name" "catering-services-config" "root" $) | nindent 4 }}
+data:
+  MYSQL_HOST: mysql
+  MYSQL_PORT: {{ .Values.mysql.port | quote }}
+  REDIS_HOST: redis
+  REDIS_PORT: {{ .Values.redis.port | quote }}
+  RABBITMQ_HOST: rabbitmq
+  RABBITMQ_PORT: {{ .Values.rabbitmq.amqpPort | quote }}
+  EUREKA_DEFAULT_ZONE: http://eureka-server:{{ .Values.eureka.port }}/eureka/
