@@ -12,6 +12,11 @@ USE catering_auth;
 
 SET NAMES utf8mb4;
 
+-- 允许本脚本在已有旧表时重复执行。
+-- 旧表之间存在外键关系，重建前需要先关闭外键检查，否则删除父表时会被子表引用阻止。
+SET FOREIGN_KEY_CHECKS = 0;
+DROP VIEW IF EXISTS v_permission_matrix;
+
 -- =============================================
 -- 1. 用户表 (sys_user)
 -- 说明: 存储系统所有用户信息
@@ -147,6 +152,9 @@ CREATE TABLE sys_operation_log (
     INDEX idx_user_id (user_id),
     INDEX idx_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='操作日志表';
+
+-- 表结构已经重建完成，恢复外键检查，后续插入数据继续按正常约束执行。
+SET FOREIGN_KEY_CHECKS = 1;
 
 -- =============================================
 -- 初始化数据
@@ -398,7 +406,7 @@ SELECT
     COUNT(rm.menu_id) as menu_count
 FROM sys_role r
 LEFT JOIN sys_role_menu rm ON r.id = rm.role_id
-GROUP BY r.id, r.role_code, r.role_name
+GROUP BY r.id, r.role_code, r.role_name, r.sort_order
 ORDER BY r.sort_order;
 
 -- 查询店长的具体菜单权限
